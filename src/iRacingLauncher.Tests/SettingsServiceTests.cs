@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
@@ -22,7 +23,8 @@ public class SettingsServiceTests
             var config = service.Load();
 
             Assert.Equal(2, config.LaunchDelaySeconds);
-            Assert.Single(config.Profiles);
+            Assert.Equal(3, config.Profiles.Count);
+            Assert.Equal("iRacing", config.ActiveProfileName);
             Assert.Equal(5, config.ActiveProfile.Apps.Count);
             Assert.True(File.Exists(path));
         }
@@ -30,6 +32,29 @@ public class SettingsServiceTests
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void CreateDefaultConfig_ShipsIRacingAccAndAcProfilesWithNoPaths()
+    {
+        var config = SettingsService.CreateDefaultConfig();
+
+        Assert.Equal(new[] { "iRacing", "ACC", "AC" }, config.Profiles.Select(p => p.Name));
+        Assert.All(
+            config.Profiles.SelectMany(p => p.Apps),
+            app => Assert.Equal(string.Empty, app.Path));
+
+        var iRacingCompanions = config.Profiles[0].Apps.Select(a => a.Name).Skip(1);
+        var accCompanions = config.Profiles[1].Apps.Select(a => a.Name).Skip(1);
+        var acCompanions = config.Profiles[2].Apps.Select(a => a.Name).Skip(1);
+
+        // iRacing and ACC carry the same companion-tool lineup, just a different sim entry.
+        Assert.Equal(iRacingCompanions, accCompanions);
+        Assert.Contains("Coach David", iRacingCompanions);
+
+        // Vanilla AC drops Coach Dave Delta, which doesn't support it.
+        Assert.DoesNotContain("Coach David", acCompanions);
+        Assert.Equal(acCompanions, iRacingCompanions.Where(n => n != "Coach David"));
     }
 
     [Fact]
@@ -63,22 +88,23 @@ public class SettingsServiceTests
         {
             var service = new SettingsService(path);
             var config = SettingsService.CreateDefaultConfig();
+            var presetCount = config.Profiles.Count;
             config.Profiles.Add(new Profile
             {
-                Name = "ACC",
+                Name = "rFactor2",
                 Apps = new List<AppEntry>
                 {
-                    new() { Name = "Assetto Corsa Competizione", ProcessName = "acc", Path = @"C:\acc.exe", Selected = true },
+                    new() { Name = "rFactor 2", ProcessName = "rFactor2", Path = @"C:\rf2.exe", Selected = true },
                 },
             });
-            config.ActiveProfileName = "ACC";
+            config.ActiveProfileName = "rFactor2";
 
             service.Save(config);
             var loaded = service.Load();
 
-            Assert.Equal(2, loaded.Profiles.Count);
-            Assert.Equal("ACC", loaded.ActiveProfileName);
-            Assert.Equal("ACC", loaded.ActiveProfile.Name);
+            Assert.Equal(presetCount + 1, loaded.Profiles.Count);
+            Assert.Equal("rFactor2", loaded.ActiveProfileName);
+            Assert.Equal("rFactor2", loaded.ActiveProfile.Name);
             Assert.Single(loaded.ActiveProfile.Apps);
         }
         finally

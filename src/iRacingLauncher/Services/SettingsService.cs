@@ -166,18 +166,42 @@ public class SettingsService
             {
                 new()
                 {
-                    Name = defaultProfileName,
+                    Name = "iRacing",
                     Apps = new List<AppEntry>
                     {
-                        new() { Name = "iRacing", ProcessName = "iRacingUI", Path = "", Selected = true },
-                        new() { Name = "CrewChiefV4", ProcessName = "CrewChiefV4", Path = "", Selected = true },
-                        new() { Name = "TradingPaints", ProcessName = "Trading Paints", Path = "", Selected = true },
-                        new() { Name = "RaceLab", ProcessName = "RacelabApps", Path = "", Selected = true },
-                        new() { Name = "Coach David", ProcessName = "Coach Dave Delta", Path = "", Selected = true },
+                        Sim("iRacing", "iRacingUI"),
+                        CrewChief(), TradingPaints(), RaceLab(), CoachDave(),
+                    },
+                },
+                new()
+                {
+                    // ACC shares iRacing's companion-tool lineup — all four support it.
+                    Name = "ACC",
+                    Apps = new List<AppEntry>
+                    {
+                        Sim("Assetto Corsa Competizione", "AC2-Win64-Shipping"),
+                        CrewChief(), TradingPaints(), RaceLab(), CoachDave(),
+                    },
+                },
+                new()
+                {
+                    // Vanilla AC has no Coach Dave Delta support, unlike iRacing/ACC.
+                    Name = "AC",
+                    Apps = new List<AppEntry>
+                    {
+                        Sim("Assetto Corsa", "acs"),
+                        CrewChief(), TradingPaints(), RaceLab(),
                     },
                 },
             },
         };
+
+        static AppEntry Sim(string name, string processName) =>
+            new() { Name = name, ProcessName = processName, Path = "", Selected = true };
+        static AppEntry CrewChief() => new() { Name = "CrewChiefV4", ProcessName = "CrewChiefV4", Path = "", Selected = true };
+        static AppEntry TradingPaints() => new() { Name = "TradingPaints", ProcessName = "Trading Paints", Path = "", Selected = true };
+        static AppEntry RaceLab() => new() { Name = "RaceLab", ProcessName = "RacelabApps", Path = "", Selected = true };
+        static AppEntry CoachDave() => new() { Name = "Coach David", ProcessName = "Coach Dave Delta", Path = "", Selected = true };
     }
 
     /// <summary>Shape of config.json before profiles existed — a single flat app list.</summary>
