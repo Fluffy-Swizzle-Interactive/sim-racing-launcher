@@ -181,7 +181,7 @@ public partial class MainWindow : FluentWindow
 
     private void FluentWindow_StateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized)
+        if (WindowState == WindowState.Minimized && _config.MinimizeToTray)
         {
             Hide();
         }

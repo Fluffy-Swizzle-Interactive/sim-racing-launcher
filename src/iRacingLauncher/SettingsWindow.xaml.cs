@@ -131,6 +131,7 @@ public partial class SettingsWindow : FluentWindow
         // Behavior" starts collapsed). ui:TextBox has none of that; parsed manually below.
         DelayBox.Text = _config.LaunchDelaySeconds.ToString();
         StartupToggle.IsChecked = _config.LaunchAtWindowsStartup;
+        MinimizeToTrayToggle.IsChecked = _config.MinimizeToTray;
         ThemeToggle.IsChecked = _config.Theme == "Dark";
     }
 
@@ -283,6 +284,7 @@ public partial class SettingsWindow : FluentWindow
             ? Math.Clamp(delaySeconds, 0, 30)
             : 2;
         _config.LaunchAtWindowsStartup = StartupToggle.IsChecked == true;
+        _config.MinimizeToTray = MinimizeToTrayToggle.IsChecked == true;
         _config.Theme = ThemeToggle.IsChecked == true ? "Dark" : "Light";
 
         ApplyStartupRegistration(_config.LaunchAtWindowsStartup);

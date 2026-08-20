@@ -8,6 +8,7 @@ public class LauncherConfig
 {
     public int LaunchDelaySeconds { get; set; } = 2;
     public bool LaunchAtWindowsStartup { get; set; } = false;
+    public bool MinimizeToTray { get; set; } = true;
     public string Theme { get; set; } = "Dark";
     public List<Profile> Profiles { get; set; } = new();
     public string ActiveProfileName { get; set; } = string.Empty;

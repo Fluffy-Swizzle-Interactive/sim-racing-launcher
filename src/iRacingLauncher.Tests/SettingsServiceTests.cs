@@ -66,12 +66,14 @@ public class SettingsServiceTests
             var service = new SettingsService(path);
             var config = SettingsService.CreateDefaultConfig();
             config.LaunchDelaySeconds = 7;
+            config.MinimizeToTray = false;
             config.ActiveProfile.Apps[0].Selected = false;
 
             service.Save(config);
             var loaded = service.Load();
 
             Assert.Equal(7, loaded.LaunchDelaySeconds);
+            Assert.False(loaded.MinimizeToTray);
             Assert.False(loaded.ActiveProfile.Apps[0].Selected);
         }
         finally
@@ -218,6 +220,9 @@ public class SettingsServiceTests
             Assert.Equal(3, config.LaunchDelaySeconds);
             Assert.True(config.LaunchAtWindowsStartup);
             Assert.Equal("Light", config.Theme);
+            // Minimize-to-tray predates this setting and was always on — a migrated
+            // config must keep that behavior rather than silently turning it off.
+            Assert.True(config.MinimizeToTray);
             Assert.Single(config.Profiles);
             Assert.Equal(config.Profiles[0].Name, config.ActiveProfileName);
             var app = Assert.Single(config.ActiveProfile.Apps);
