@@ -32,11 +32,11 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
-                                                <ui:Button Grid.Column="1" Icon="ArrowUp20" Margin="8,0,0,0"
+                                                <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Margin="8,0,0,0"
                                                            Click="MoveAppUpButton_Click" Tag="{Binding}" />
-                                                <ui:Button Grid.Column="2" Icon="ArrowDown20" Margin="4,0,0,0"
+                                                <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Margin="4,0,0,0"
                                                            Click="MoveAppDownButton_Click" Tag="{Binding}" />
-                                                <ui:Button Grid.Column="3" Icon="Delete20" Margin="8,0,0,0"
+                                                <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon Delete20}" ToolTip="Remove" Margin="8,0,0,0"
                                                            Click="RemoveAppButton_Click" Tag="{Binding}" />
                                             </Grid>
                                             <ui:TextBox Text="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}"

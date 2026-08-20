@@ -38,8 +38,9 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <ui:Button Grid.Column="0" Content="Settings" Icon="Settings20" Margin="0,0,8,0"
-                       Click="SettingsButton_Click" />
+            <ui:Button Grid.Column="0" Width="38" Height="38" Icon="{ui:SymbolIcon Settings20}"
+                       HorizontalContentAlignment="Center" Margin="0,0,8,0"
+                       ToolTip="Settings" Click="SettingsButton_Click" />
             <ui:Button x:Name="LaunchButton" Grid.Column="1" Content="Launch Selected" Icon="Play20"
                        Appearance="Primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                        Click="LaunchButton_Click" />
