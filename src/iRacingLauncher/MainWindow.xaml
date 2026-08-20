@@ -3,7 +3,7 @@
                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                   xmlns:controls="clr-namespace:iRacingLauncher.Controls"
-                  Title="iRacing Launcher" Height="480" Width="520"
+                  Title="Sim Racing Launcher" Height="480" Width="520"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="Mica"
                   WindowStartupLocation="CenterScreen"
@@ -17,9 +17,9 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="iRacing Launcher">
+        <ui:TitleBar Grid.Row="0" Title="Sim Racing Launcher">
             <ui:TitleBar.Header>
-                <TextBlock Text="iRacing Launcher" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock Text="Sim Racing Launcher" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" />
             </ui:TitleBar.Header>
         </ui:TitleBar>
 

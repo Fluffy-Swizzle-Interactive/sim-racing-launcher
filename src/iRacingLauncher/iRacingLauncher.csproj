@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>iRacingLauncher</AssemblyName>
+    <AssemblyName>SimRacingLauncher</AssemblyName>
     <RootNamespace>iRacingLauncher</RootNamespace>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>

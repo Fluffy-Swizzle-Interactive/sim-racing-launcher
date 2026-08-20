@@ -30,7 +30,7 @@ public partial class App : Application
 
         _notifyIcon = new NotifyIcon
         {
-            TooltipText = "iRacing Launcher",
+            TooltipText = "Sim Racing Launcher",
             Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
                 new Uri("pack://application:,,,/iRacingLauncher.ico")),
             // MenuOnRightClick (and FocusOnLeftClick) are normally pushed into the tray
