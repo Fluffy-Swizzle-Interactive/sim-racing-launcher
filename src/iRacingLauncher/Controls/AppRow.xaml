@@ -14,7 +14,8 @@
             </Grid.ColumnDefinitions>
 
             <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
-                      IsChecked="{Binding Selected, Mode=TwoWay}" />
+                      IsChecked="{Binding Selected, Mode=TwoWay}"
+                      IsEnabled="{Binding IsStartable}" />
 
             <Image Grid.Column="1" Width="28" Height="28" Margin="0,0,12,0"
                    Source="{Binding Icon}" />
