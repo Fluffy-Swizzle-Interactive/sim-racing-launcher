@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using iRacingLauncher.Models;
 
@@ -50,11 +51,33 @@ public class SettingsService
         try
         {
             var json = File.ReadAllText(_configPath);
-            var config = JsonSerializer.Deserialize<LauncherConfig>(json, SerializerOptions);
-            if (config is null || config.Apps is null)
+            using var doc = JsonDocument.Parse(json);
+            // Pre-profiles config files have a top-level "apps" array and no
+            // "profiles" key. Detect that shape and migrate it into a single
+            // profile rather than losing the user's existing app list.
+            var isLegacyFormat = !HasProperty(doc.RootElement, "profiles");
+
+            var config = isLegacyFormat
+                ? MigrateLegacyFormat(json)
+                : JsonSerializer.Deserialize<LauncherConfig>(json, SerializerOptions);
+
+            if (config is null || config.Profiles is null || config.Profiles.Count == 0)
             {
                 return ResetToDefaults();
             }
+
+            if (!config.Profiles.Any(p => p.Name == config.ActiveProfileName))
+            {
+                config.ActiveProfileName = config.Profiles[0].Name;
+            }
+
+            if (isLegacyFormat)
+            {
+                // Persist the migrated shape now so future loads read the new
+                // format directly instead of re-migrating every startup.
+                TrySave(config);
+            }
+
             return config;
         }
         catch (JsonException)
@@ -72,21 +95,51 @@ public class SettingsService
         }
     }
 
+    private static bool HasProperty(JsonElement root, string name) =>
+        root.EnumerateObject().Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private static LauncherConfig? MigrateLegacyFormat(string json)
+    {
+        var legacy = JsonSerializer.Deserialize<LegacyLauncherConfig>(json, SerializerOptions);
+        if (legacy is null)
+        {
+            return null;
+        }
+
+        const string defaultProfileName = "Default";
+        return new LauncherConfig
+        {
+            LaunchDelaySeconds = legacy.LaunchDelaySeconds,
+            LaunchAtWindowsStartup = legacy.LaunchAtWindowsStartup,
+            Theme = legacy.Theme,
+            ActiveProfileName = defaultProfileName,
+            Profiles = new List<Profile>
+            {
+                new() { Name = defaultProfileName, Apps = legacy.Apps },
+            },
+        };
+    }
+
     private LauncherConfig ResetToDefaults()
     {
         var defaults = CreateDefaultConfig();
+        TrySave(defaults);
+        return defaults;
+    }
+
+    private void TrySave(LauncherConfig config)
+    {
         try
         {
-            Save(defaults);
+            Save(config);
         }
         catch (IOException)
         {
-            // Read-only or locked config location — carry on with in-memory defaults.
+            // Read-only or locked config location — carry on with in-memory config.
         }
         catch (UnauthorizedAccessException)
         {
         }
-        return defaults;
     }
 
     public void Save(LauncherConfig config)
@@ -102,19 +155,37 @@ public class SettingsService
 
     public static LauncherConfig CreateDefaultConfig()
     {
+        const string defaultProfileName = "iRacing";
         return new LauncherConfig
         {
             LaunchDelaySeconds = 2,
             LaunchAtWindowsStartup = false,
             Theme = "Dark",
-            Apps = new List<AppEntry>
+            ActiveProfileName = defaultProfileName,
+            Profiles = new List<Profile>
             {
-                new() { Name = "iRacing", ProcessName = "iRacingUI", Path = "", Selected = true },
-                new() { Name = "CrewChiefV4", ProcessName = "CrewChiefV4", Path = "", Selected = true },
-                new() { Name = "TradingPaints", ProcessName = "Trading Paints", Path = "", Selected = true },
-                new() { Name = "RaceLab", ProcessName = "RacelabApps", Path = "", Selected = true },
-                new() { Name = "Coach David", ProcessName = "Coach Dave Delta", Path = "", Selected = true },
-            }
+                new()
+                {
+                    Name = defaultProfileName,
+                    Apps = new List<AppEntry>
+                    {
+                        new() { Name = "iRacing", ProcessName = "iRacingUI", Path = "", Selected = true },
+                        new() { Name = "CrewChiefV4", ProcessName = "CrewChiefV4", Path = "", Selected = true },
+                        new() { Name = "TradingPaints", ProcessName = "Trading Paints", Path = "", Selected = true },
+                        new() { Name = "RaceLab", ProcessName = "RacelabApps", Path = "", Selected = true },
+                        new() { Name = "Coach David", ProcessName = "Coach Dave Delta", Path = "", Selected = true },
+                    },
+                },
+            },
         };
+    }
+
+    /// <summary>Shape of config.json before profiles existed — a single flat app list.</summary>
+    private class LegacyLauncherConfig
+    {
+        public int LaunchDelaySeconds { get; set; } = 2;
+        public bool LaunchAtWindowsStartup { get; set; } = false;
+        public string Theme { get; set; } = "Dark";
+        public List<AppEntry> Apps { get; set; } = new();
     }
 }

@@ -49,6 +49,23 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
 }
 
+public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
+{
+    public Profile Model { get; }
+
+    public ProfileEditRowViewModel(Profile model) => Model = model;
+
+    public string Name
+    {
+        get => Model.Name;
+        set { Model.Name = value; OnPropertyChanged(); }
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
 public partial class SettingsWindow : FluentWindow
 {
     private const string StartupRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -57,9 +74,23 @@ public partial class SettingsWindow : FluentWindow
     private readonly LauncherConfig _config;
     private readonly SettingsService _settingsService;
     private readonly AppFinderService _appFinder;
+    private readonly ObservableCollection<ProfileEditRowViewModel> _profileEditRows = new();
     private readonly ObservableCollection<AppEditRowViewModel> _editRows = new();
-    private readonly List<AppEntry> _workingApps;
+    private readonly List<Profile> _workingProfiles;
     private readonly string _originalTheme;
+
+    /// <summary>
+    /// The profile whose apps the "App List" card is currently showing/editing.
+    /// Tracked by reference (not name) so renaming it in the Profiles list doesn't
+    /// lose track of it.
+    /// </summary>
+    private Profile _currentEditingProfile;
+
+    /// <summary>
+    /// The profile that will become ActiveProfileName on Save. Tracked by reference
+    /// for the same reason — a rename must not silently fall back to the default.
+    /// </summary>
+    private Profile _workingActiveProfile;
 
     public SettingsWindow(LauncherConfig config, SettingsService settingsService, AppFinderService appFinder)
     {
@@ -73,15 +104,24 @@ public partial class SettingsWindow : FluentWindow
         _originalTheme = _config.Theme;
 
         // Work on a deep copy so Cancel can genuinely discard edits — see task-7 review fix.
-        _workingApps = _config.Apps
-            .Select(a => new AppEntry { Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Selected = a.Selected })
+        _workingProfiles = _config.Profiles
+            .Select(p => new Profile
+            {
+                Name = p.Name,
+                Apps = p.Apps.Select(a => new AppEntry { Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Selected = a.Selected }).ToList(),
+            })
             .ToList();
 
-        foreach (var app in _workingApps)
+        foreach (var profile in _workingProfiles)
         {
-            _editRows.Add(new AppEditRowViewModel(app));
+            _profileEditRows.Add(new ProfileEditRowViewModel(profile));
         }
+        ProfileEditList.ItemsSource = _profileEditRows;
+
+        _workingActiveProfile = _workingProfiles.FirstOrDefault(p => p.Name == _config.ActiveProfileName) ?? _workingProfiles[0];
+        _currentEditingProfile = _workingActiveProfile;
         AppEditList.ItemsSource = _editRows;
+        LoadEditRowsFromCurrentProfile();
 
         // Plain ui:TextBox, not ui:NumberBox: NumberBox has a real WPF-UI rendering bug
         // where text set before the control's first layout pass never paints (root-caused
@@ -94,17 +134,64 @@ public partial class SettingsWindow : FluentWindow
         ThemeToggle.IsChecked = _config.Theme == "Dark";
     }
 
+    private void LoadEditRowsFromCurrentProfile()
+    {
+        _editRows.Clear();
+        foreach (var app in _currentEditingProfile.Apps)
+        {
+            _editRows.Add(new AppEditRowViewModel(app));
+        }
+        EditingProfileLabel.Text = $"Editing: {_currentEditingProfile.Name}";
+    }
+
+    private void AddProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var profile = new Profile { Name = "New Profile", Apps = new List<AppEntry>() };
+        _workingProfiles.Add(profile);
+        _profileEditRows.Add(new ProfileEditRowViewModel(profile));
+
+        _currentEditingProfile = profile;
+        LoadEditRowsFromCurrentProfile();
+    }
+
+    private void RemoveProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
+        // Always leave at least one profile — there must always be something to launch.
+        if (_workingProfiles.Count <= 1) return;
+
+        _workingProfiles.Remove(row.Model);
+        _profileEditRows.Remove(row);
+
+        if (ReferenceEquals(_currentEditingProfile, row.Model))
+        {
+            _currentEditingProfile = _workingProfiles[0];
+            LoadEditRowsFromCurrentProfile();
+        }
+        if (ReferenceEquals(_workingActiveProfile, row.Model))
+        {
+            _workingActiveProfile = _workingProfiles[0];
+        }
+    }
+
+    private void EditProfileAppsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
+        _currentEditingProfile = row.Model;
+        LoadEditRowsFromCurrentProfile();
+    }
+
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
     {
         var app = new AppEntry { Name = "New App", ProcessName = string.Empty, Path = string.Empty, Selected = true };
-        _workingApps.Add(app);
+        _currentEditingProfile.Apps.Add(app);
         _editRows.Add(new AppEditRowViewModel(app));
     }
 
     private void RemoveAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        _workingApps.Remove(row.Model);
+        _currentEditingProfile.Apps.Remove(row.Model);
         _editRows.Remove(row);
     }
 
@@ -114,8 +201,8 @@ public partial class SettingsWindow : FluentWindow
         var index = _editRows.IndexOf(row);
         if (index <= 0) return;
         _editRows.Move(index, index - 1);
-        _workingApps.Remove(row.Model);
-        _workingApps.Insert(index - 1, row.Model);
+        _currentEditingProfile.Apps.Remove(row.Model);
+        _currentEditingProfile.Apps.Insert(index - 1, row.Model);
     }
 
     private void MoveAppDownButton_Click(object sender, RoutedEventArgs e)
@@ -124,8 +211,8 @@ public partial class SettingsWindow : FluentWindow
         var index = _editRows.IndexOf(row);
         if (index < 0 || index >= _editRows.Count - 1) return;
         _editRows.Move(index, index + 1);
-        _workingApps.Remove(row.Model);
-        _workingApps.Insert(index + 1, row.Model);
+        _currentEditingProfile.Apps.Remove(row.Model);
+        _currentEditingProfile.Apps.Insert(index + 1, row.Model);
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -181,12 +268,13 @@ public partial class SettingsWindow : FluentWindow
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        // Must mutate the existing List<AppEntry> in place rather than reassigning
-        // _config.Apps: App.xaml.cs's tray "Launch Selected" closure captures config
-        // and reads config.Apps lazily, so swapping the list reference would silently
-        // leave the tray menu launching a stale app list.
-        _config.Apps.Clear();
-        _config.Apps.AddRange(_workingApps);
+        // Must mutate the existing List<Profile> in place rather than reassigning
+        // _config.Profiles: App.xaml.cs's tray "Launch Selected" closure captures
+        // config and reads config.ActiveProfile.Apps lazily, so swapping the list
+        // reference would silently leave the tray menu launching a stale app list.
+        _config.Profiles.Clear();
+        _config.Profiles.AddRange(_workingProfiles);
+        _config.ActiveProfileName = _workingActiveProfile.Name;
 
         // DelayBox is a plain ui:TextBox (see constructor comment) — parse and clamp
         // manually, matching the 0-30 range the old NumberBox enforced. An unparseable

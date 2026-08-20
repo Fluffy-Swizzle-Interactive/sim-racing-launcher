@@ -49,7 +49,7 @@ public partial class App : Application
         {
             try
             {
-                await processService.LaunchSelectedAsync(config.Apps, config.LaunchDelaySeconds);
+                await processService.LaunchSelectedAsync(config.ActiveProfile.Apps, config.LaunchDelaySeconds);
             }
             catch (Exception)
             {

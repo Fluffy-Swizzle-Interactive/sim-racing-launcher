@@ -11,6 +11,8 @@
     <Grid Margin="0,0,0,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -21,7 +23,19 @@
             </ui:TitleBar.Header>
         </ui:TitleBar>
 
-        <ScrollViewer Grid.Row="1" Margin="16,8">
+        <Grid Grid.Row="1" Margin="16,8,16,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Profile" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+            <ComboBox x:Name="ProfileComboBox" Grid.Column="1" HorizontalAlignment="Stretch" />
+        </Grid>
+
+        <ui:InfoBar x:Name="LaunchInfoBar" Grid.Row="2" Margin="16,8,16,0"
+                    IsOpen="False" Severity="Warning" Title="Some apps didn't launch" />
+
+        <ScrollViewer Grid.Row="3" Margin="16,8">
             <ItemsControl x:Name="AppList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -33,10 +47,11 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Grid Grid.Row="2" Margin="16">
+        <Grid Grid.Row="4" Margin="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ui:Button Grid.Column="0" Width="36" Height="36" Icon="{ui:SymbolIcon Settings20, FontSize=16}"
                        HorizontalContentAlignment="Center" Margin="0,0,8,0"
@@ -44,6 +59,8 @@
             <ui:Button x:Name="LaunchButton" Grid.Column="1" Content="Launch Selected" Icon="Play20"
                        Appearance="Primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                        Click="LaunchButton_Click" />
+            <ui:Button x:Name="StopAllButton" Grid.Column="2" Content="Stop All" Icon="{ui:SymbolIcon Stop20}"
+                       Appearance="Danger" Margin="8,0,0,0" Click="StopAllButton_Click" />
         </Grid>
     </Grid>
 </ui:FluentWindow>

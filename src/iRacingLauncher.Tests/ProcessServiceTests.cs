@@ -41,9 +41,9 @@ public class ProcessServiceTests
         var delays = new List<int>();
         var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
 
-        var launched = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
 
-        Assert.Equal(new[] { "A", "C" }, launched);
+        Assert.Equal(new[] { "A", "C" }, result.Launched);
         Assert.Equal(new[] { @"C:\a.exe", @"C:\c.exe" }, gateway.StartedPaths);
     }
 
@@ -55,9 +55,9 @@ public class ProcessServiceTests
         var gateway = new FakeProcessGateway();
         var service = new ProcessService(gateway, _ => Task.CompletedTask);
 
-        var launched = await service.LaunchSelectedAsync(apps, delaySeconds: 2);
+        var result = await service.LaunchSelectedAsync(apps, delaySeconds: 2);
 
-        Assert.Equal(new[] { "A", "C" }, launched);
+        Assert.Equal(new[] { "A", "C" }, result.Launched);
     }
 
     [Fact]
@@ -81,14 +81,29 @@ public class ProcessServiceTests
         var delays = new List<int>();
         var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
 
-        var launched = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
 
         // The app that failed to start is not reported as launched...
-        Assert.Equal(new[] { "A", "C" }, launched);
-        // ...but the batch kept going: C was still attempted after B failed.
+        Assert.Equal(new[] { "A", "C" }, result.Launched);
+        // ...but is reported as failed, so the caller can surface it to the user.
+        Assert.Equal(new[] { "B" }, result.Failed);
+        // ...and the batch kept going: C was still attempted after B failed.
         Assert.Equal(new[] { @"C:\a.exe", @"C:\b.exe", @"C:\c.exe" }, gateway.StartedPaths);
         // And no stagger delay is burned waiting on an app that never started.
         Assert.Equal(new[] { 2, 2 }, delays);
+    }
+
+    [Fact]
+    public async Task LaunchSelectedAsync_AlreadyRunningAppsAreNeitherLaunchedNorFailed()
+    {
+        var gateway = new FakeProcessGateway();
+        gateway.RunningProcessNames.Add("procB");
+        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+
+        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+
+        Assert.DoesNotContain("B", result.Launched);
+        Assert.DoesNotContain("B", result.Failed);
     }
 
     /// <summary>
@@ -120,6 +135,36 @@ public class ProcessServiceTests
         await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2, progress);
 
         Assert.Equal(new[] { (1, 3), (2, 3), (3, 3) }, reported);
+    }
+
+    [Fact]
+    public void StopAll_StopsOnlyRunningApps()
+    {
+        var gateway = new FakeProcessGateway();
+        gateway.RunningProcessNames.Add("procA");
+        gateway.RunningProcessNames.Add("procC");
+        var service = new ProcessService(gateway);
+
+        var stopped = service.StopAll(ThreeApps());
+
+        Assert.Equal(new[] { "A", "C" }, stopped);
+        Assert.Equal(new[] { "procA", "procC" }, gateway.KilledProcessNames);
+    }
+
+    [Fact]
+    public void StopAll_IgnoresSelectedState()
+    {
+        // Stop All targets everything actually running, independent of whether it's
+        // checked for the next launch batch.
+        var apps = ThreeApps();
+        apps[0].Selected = false;
+        var gateway = new FakeProcessGateway();
+        gateway.RunningProcessNames.Add("procA");
+        var service = new ProcessService(gateway);
+
+        var stopped = service.StopAll(apps);
+
+        Assert.Equal(new[] { "A" }, stopped);
     }
 
     [Fact]

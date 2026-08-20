@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using iRacingLauncher.Models;
@@ -21,7 +22,8 @@ public class SettingsServiceTests
             var config = service.Load();
 
             Assert.Equal(2, config.LaunchDelaySeconds);
-            Assert.Equal(5, config.Apps.Count);
+            Assert.Single(config.Profiles);
+            Assert.Equal(5, config.ActiveProfile.Apps.Count);
             Assert.True(File.Exists(path));
         }
         finally
@@ -39,13 +41,45 @@ public class SettingsServiceTests
             var service = new SettingsService(path);
             var config = SettingsService.CreateDefaultConfig();
             config.LaunchDelaySeconds = 7;
-            config.Apps[0].Selected = false;
+            config.ActiveProfile.Apps[0].Selected = false;
 
             service.Save(config);
             var loaded = service.Load();
 
             Assert.Equal(7, loaded.LaunchDelaySeconds);
-            Assert.False(loaded.Apps[0].Selected);
+            Assert.False(loaded.ActiveProfile.Apps[0].Selected);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void SaveThenLoad_RoundTripsMultipleProfilesAndActiveSelection()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            var service = new SettingsService(path);
+            var config = SettingsService.CreateDefaultConfig();
+            config.Profiles.Add(new Profile
+            {
+                Name = "ACC",
+                Apps = new List<AppEntry>
+                {
+                    new() { Name = "Assetto Corsa Competizione", ProcessName = "acc", Path = @"C:\acc.exe", Selected = true },
+                },
+            });
+            config.ActiveProfileName = "ACC";
+
+            service.Save(config);
+            var loaded = service.Load();
+
+            Assert.Equal(2, loaded.Profiles.Count);
+            Assert.Equal("ACC", loaded.ActiveProfileName);
+            Assert.Equal("ACC", loaded.ActiveProfile.Name);
+            Assert.Single(loaded.ActiveProfile.Apps);
         }
         finally
         {
@@ -64,7 +98,7 @@ public class SettingsServiceTests
 
             var config = service.Load();
 
-            Assert.Equal(5, config.Apps.Count);
+            Assert.Equal(5, config.ActiveProfile.Apps.Count);
 
             // Verify the corrupt file on disk was actually overwritten, not just
             // that Load() returns in-memory defaults regardless of disk state.
@@ -74,7 +108,7 @@ public class SettingsServiceTests
             Assert.NotNull(reparsed);
 
             var reloaded = service.Load();
-            Assert.Equal(5, reloaded.Apps.Count);
+            Assert.Equal(5, reloaded.ActiveProfile.Apps.Count);
         }
         finally
         {
@@ -94,6 +128,53 @@ public class SettingsServiceTests
                   "launchDelaySeconds": 9,
                   "launchAtWindowsStartup": true,
                   "theme": "Light",
+                  "activeProfileName": "iRacing",
+                  "profiles": [
+                    {
+                      "name": "iRacing",
+                      "apps": [
+                        {
+                          "name": "iRacing",
+                          "processName": "iRacingUI",
+                          "path": "C:\\iRacing\\ui\\iRacingUI.exe",
+                          "selected": false
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            Assert.Equal(9, config.LaunchDelaySeconds);
+            Assert.True(config.LaunchAtWindowsStartup);
+            Assert.Equal("Light", config.Theme);
+            var app = Assert.Single(config.ActiveProfile.Apps);
+            Assert.Equal("iRacing", app.Name);
+            Assert.Equal("iRacingUI", app.ProcessName);
+            Assert.Equal(@"C:\iRacing\ui\iRacingUI.exe", app.Path);
+            Assert.False(app.Selected);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_MigratesPreProfilesFlatAppsFormatIntoASingleProfile()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            // The on-disk shape written by every build before profiles existed.
+            File.WriteAllText(path, """
+                {
+                  "launchDelaySeconds": 3,
+                  "launchAtWindowsStartup": true,
+                  "theme": "Light",
                   "apps": [
                     {
                       "name": "iRacing",
@@ -108,14 +189,18 @@ public class SettingsServiceTests
 
             var config = service.Load();
 
-            Assert.Equal(9, config.LaunchDelaySeconds);
+            Assert.Equal(3, config.LaunchDelaySeconds);
             Assert.True(config.LaunchAtWindowsStartup);
             Assert.Equal("Light", config.Theme);
-            var app = Assert.Single(config.Apps);
+            Assert.Single(config.Profiles);
+            Assert.Equal(config.Profiles[0].Name, config.ActiveProfileName);
+            var app = Assert.Single(config.ActiveProfile.Apps);
             Assert.Equal("iRacing", app.Name);
-            Assert.Equal("iRacingUI", app.ProcessName);
-            Assert.Equal(@"C:\iRacing\ui\iRacingUI.exe", app.Path);
             Assert.False(app.Selected);
+
+            // The migrated shape is persisted so the next load reads it directly.
+            var raw = File.ReadAllText(path);
+            Assert.Contains("\"profiles\"", raw);
         }
         finally
         {
@@ -135,9 +220,30 @@ public class SettingsServiceTests
             var raw = File.ReadAllText(path);
 
             Assert.Contains("\"launchDelaySeconds\"", raw);
-            Assert.Contains("\"apps\"", raw);
+            Assert.Contains("\"profiles\"", raw);
             Assert.Contains("\"processName\"", raw);
             Assert.DoesNotContain("\"LaunchDelaySeconds\"", raw);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Save_DoesNotWriteTheDerivedActiveProfileProperty()
+    {
+        // ActiveProfile is computed from Profiles/ActiveProfileName — it must not
+        // round-trip through JSON as a redundant, duplicated copy of the same data.
+        var path = TempConfigPath();
+        try
+        {
+            var service = new SettingsService(path);
+            service.Save(SettingsService.CreateDefaultConfig());
+
+            var raw = File.ReadAllText(path);
+
+            Assert.DoesNotContain("\"activeProfile\"", raw);
         }
         finally
         {

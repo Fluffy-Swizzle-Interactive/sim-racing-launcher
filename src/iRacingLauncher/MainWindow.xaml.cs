@@ -1,7 +1,9 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -33,18 +35,48 @@ public partial class MainWindow : FluentWindow
         _settingsService = settingsService;
         _appFinder = appFinder;
 
-        foreach (var app in _config.Apps)
-        {
-            var row = new AppRowViewModel(app) { Icon = TryLoadIcon(app.Path) };
-            _rows.Add(row);
-        }
-        AppList.ItemsSource = _rows;
+        LoadProfileNames();
+        LoadRowsFromActiveProfile();
 
         RefreshStatuses();
 
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _statusTimer.Tick += (_, _) => RefreshStatuses();
         _statusTimer.Start();
+    }
+
+    /// <summary>
+    /// Populates the profile switcher from the config's profile list, selecting
+    /// whichever one is active. Set before wiring SelectionChanged so populating it
+    /// doesn't itself trigger a reload.
+    /// </summary>
+    private void LoadProfileNames()
+    {
+        ProfileComboBox.SelectionChanged -= ProfileComboBox_SelectionChanged;
+        ProfileComboBox.ItemsSource = _config.Profiles.Select(p => p.Name).ToList();
+        ProfileComboBox.SelectedItem = _config.ActiveProfile.Name;
+        ProfileComboBox.SelectionChanged += ProfileComboBox_SelectionChanged;
+    }
+
+    private void LoadRowsFromActiveProfile()
+    {
+        _rows.Clear();
+        foreach (var app in _config.ActiveProfile.Apps)
+        {
+            _rows.Add(new AppRowViewModel(app) { Icon = TryLoadIcon(app.Path) });
+        }
+        AppList.ItemsSource = _rows;
+    }
+
+    private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ProfileComboBox.SelectedItem is not string profileName)
+        {
+            return;
+        }
+        _config.ActiveProfileName = profileName;
+        LoadRowsFromActiveProfile();
+        RefreshStatuses();
     }
 
     private void RefreshStatuses()
@@ -83,11 +115,17 @@ public partial class MainWindow : FluentWindow
     private async void LaunchButton_Click(object sender, RoutedEventArgs e)
     {
         LaunchButton.IsEnabled = false;
+        LaunchInfoBar.IsOpen = false;
         var progress = new Progress<(int Current, int Total)>(p =>
             LaunchButton.Content = $"Launching {p.Current} of {p.Total}…");
         try
         {
-            await _processService.LaunchSelectedAsync(_config.Apps, _config.LaunchDelaySeconds, progress);
+            var result = await _processService.LaunchSelectedAsync(_config.ActiveProfile.Apps, _config.LaunchDelaySeconds, progress);
+            if (result.Failed.Count > 0)
+            {
+                LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
+                LaunchInfoBar.IsOpen = true;
+            }
         }
         catch (Exception)
         {
@@ -100,6 +138,12 @@ public partial class MainWindow : FluentWindow
             LaunchButton.Content = "Launch Selected";
             LaunchButton.IsEnabled = true;
         }
+    }
+
+    private void StopAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        _processService.StopAll(_config.ActiveProfile.Apps);
+        RefreshStatuses();
     }
 
     private void AppRow_StartRequested(object? sender, AppRowViewModel row)
@@ -128,12 +172,10 @@ public partial class MainWindow : FluentWindow
         var settingsWindow = new SettingsWindow(_config, _settingsService, _appFinder) { Owner = this };
         settingsWindow.ShowDialog();
 
-        _rows.Clear();
-        foreach (var app in _config.Apps)
-        {
-            _rows.Add(new AppRowViewModel(app) { Icon = TryLoadIcon(app.Path) });
-        }
-        AppList.ItemsSource = _rows;
+        // Settings can add, rename, delete or reorder profiles, and can change which
+        // one is active — reload the switcher itself, not just the app rows.
+        LoadProfileNames();
+        LoadRowsFromActiveProfile();
         RefreshStatuses();
     }
 

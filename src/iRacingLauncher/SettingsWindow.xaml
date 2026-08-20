@@ -17,8 +17,37 @@
 
         <ScrollViewer Grid.Row="1" Margin="16,8">
             <StackPanel>
+                <ui:CardExpander Header="Profiles" Margin="0,4" IsExpanded="True">
+                    <StackPanel>
+                        <TextBlock Text="Each profile has its own app list — switch between them from the main window."
+                                   FontSize="11" Opacity="0.6" Margin="0,0,0,8" TextWrapping="Wrap" />
+                        <ItemsControl x:Name="ProfileEditList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ui:Card Margin="0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ui:TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                                            <ui:Button Grid.Column="1" Content="Edit Apps" Margin="8,0,0,0"
+                                                       Click="EditProfileAppsButton_Click" Tag="{Binding}" />
+                                            <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon Delete20}" ToolTip="Delete profile" Margin="8,0,0,0"
+                                                       Click="RemoveProfileButton_Click" Tag="{Binding}" />
+                                        </Grid>
+                                    </ui:Card>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ui:Button Content="Add Profile" Icon="Add20" Margin="0,8,0,0" Click="AddProfileButton_Click" />
+                    </StackPanel>
+                </ui:CardExpander>
+
                 <ui:CardExpander Header="App List" Margin="0,4" IsExpanded="True">
                     <StackPanel>
+                        <TextBlock x:Name="EditingProfileLabel" Text="Editing:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
                         <ItemsControl x:Name="AppEditList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
