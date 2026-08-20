@@ -49,9 +49,9 @@
                                                 </Grid.ColumnDefinitions>
                                                 <ui:TextBox Grid.Column="0" Text="{Binding Path, UpdateSourceTrigger=PropertyChanged}"
                                                          PlaceholderText="Path to executable" />
-                                                <ui:Button Grid.Column="1" Content="Browse" Margin="8,0,0,0"
+                                                <ui:Button Grid.Column="1" Content="Browse" Icon="{ui:SymbolIcon FolderOpen20}" Margin="8,0,0,0"
                                                            Click="BrowseButton_Click" Tag="{Binding}" />
-                                                <ui:Button Grid.Column="2" Content="Auto-Find" Margin="8,0,0,0"
+                                                <ui:Button Grid.Column="2" Content="Auto-Find" Icon="{ui:SymbolIcon Search20}" Margin="8,0,0,0"
                                                            Click="AutoFindButton_Click" Tag="{Binding}" />
                                             </Grid>
                                             <TextBlock Text="{Binding FindStatus}" FontSize="11" Opacity="0.7" Margin="0,4,0,0" />
