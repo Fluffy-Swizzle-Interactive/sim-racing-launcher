@@ -91,6 +91,37 @@ public class ProcessServiceTests
         Assert.Equal(new[] { 2, 2 }, delays);
     }
 
+    /// <summary>
+    /// Reports synchronously, unlike System.Progress&lt;T&gt; (which marshals via
+    /// SynchronizationContext.Post — falling back to the ThreadPool with no context
+    /// installed, as in a test host, which races a plain List across threads). This
+    /// double isolates the test to "was Report called with the right values in the
+    /// right order", not incidental async-marshaling behavior.
+    /// </summary>
+    private class SyncProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _report;
+        public SyncProgress(Action<T> report) => _report = report;
+        public void Report(T value) => _report(value);
+    }
+
+    [Fact]
+    public async Task LaunchSelectedAsync_ReportsProgressAcrossTheWholeSelection()
+    {
+        // Progress tracks position through the selected batch (including apps
+        // skipped as already-running), not just successful launches — this is
+        // what drives the "Launching N of M..." UI during a staggered batch.
+        var gateway = new FakeProcessGateway();
+        gateway.RunningProcessNames.Add("procB");
+        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var reported = new List<(int Current, int Total)>();
+        var progress = new SyncProgress<(int, int)>(p => reported.Add(p));
+
+        await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2, progress);
+
+        Assert.Equal(new[] { (1, 3), (2, 3), (3, 3) }, reported);
+    }
+
     [Fact]
     public void StopApp_KillsByProcessName()
     {

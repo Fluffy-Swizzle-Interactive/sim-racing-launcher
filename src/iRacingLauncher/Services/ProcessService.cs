@@ -29,11 +29,26 @@ public class ProcessService
 
     public void StopApp(AppEntry app) => _gateway.Kill(app.ProcessName);
 
-    public async Task<List<string>> LaunchSelectedAsync(IEnumerable<AppEntry> apps, int delaySeconds)
+    /// <summary>
+    /// Launches every selected app not already running, staggered by <paramref name="delaySeconds"/>.
+    /// </summary>
+    /// <param name="progress">
+    /// Reports (current, total) position through the selected batch as each app is
+    /// reached — including ones skipped as already-running — so a caller can show
+    /// "Launching N of M..." for the whole selection, not just successful starts.
+    /// </param>
+    public async Task<List<string>> LaunchSelectedAsync(
+        IEnumerable<AppEntry> apps,
+        int delaySeconds,
+        IProgress<(int Current, int Total)>? progress = null)
     {
         var launched = new List<string>();
-        foreach (var app in apps.Where(a => a.Selected))
+        var selected = apps.Where(a => a.Selected).ToList();
+        for (var i = 0; i < selected.Count; i++)
         {
+            var app = selected[i];
+            progress?.Report((i + 1, selected.Count));
+
             if (_gateway.IsRunning(app.ProcessName))
             {
                 continue;

@@ -67,15 +67,33 @@
                 </ui:CardExpander>
 
                 <ui:CardExpander Header="Launch Behavior" Margin="0,4">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Delay between launches (seconds):" VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <ui:TextBox x:Name="DelayBox" Width="100" />
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="Delay between launches (seconds)" FontSize="13" />
+                            <TextBlock Text="Time to wait after starting each app before starting the next."
+                                       FontSize="11" Opacity="0.6" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <ui:TextBox x:Name="DelayBox" Grid.Column="1" Width="80" VerticalAlignment="Center" />
+                    </Grid>
                 </ui:CardExpander>
 
                 <ui:CardExpander Header="Startup" Margin="0,4">
-                    <ui:ToggleSwitch x:Name="StartupToggle" OnContent="Launch at Windows startup: On"
-                                      OffContent="Launch at Windows startup: Off" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="Launch at Windows startup" FontSize="13" />
+                            <TextBlock Text="Starts the launcher automatically when you sign in."
+                                       FontSize="11" Opacity="0.6" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <ui:ToggleSwitch x:Name="StartupToggle" Grid.Column="1" VerticalAlignment="Center" />
+                    </Grid>
                 </ui:CardExpander>
 
                 <ui:CardExpander Header="Appearance" Margin="0,4">

@@ -83,9 +83,11 @@ public partial class MainWindow : FluentWindow
     private async void LaunchButton_Click(object sender, RoutedEventArgs e)
     {
         LaunchButton.IsEnabled = false;
+        var progress = new Progress<(int Current, int Total)>(p =>
+            LaunchButton.Content = $"Launching {p.Current} of {p.Total}…");
         try
         {
-            await _processService.LaunchSelectedAsync(_config.Apps, _config.LaunchDelaySeconds);
+            await _processService.LaunchSelectedAsync(_config.Apps, _config.LaunchDelaySeconds, progress);
         }
         catch (Exception)
         {
@@ -95,6 +97,7 @@ public partial class MainWindow : FluentWindow
         finally
         {
             RefreshStatuses();
+            LaunchButton.Content = "Launch Selected";
             LaunchButton.IsEnabled = true;
         }
     }
