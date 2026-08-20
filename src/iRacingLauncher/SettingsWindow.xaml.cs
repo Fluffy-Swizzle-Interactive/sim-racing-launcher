@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -82,7 +83,13 @@ public partial class SettingsWindow : FluentWindow
         }
         AppEditList.ItemsSource = _editRows;
 
-        DelayBox.Value = _config.LaunchDelaySeconds;
+        // Plain ui:TextBox, not ui:NumberBox: NumberBox has a real WPF-UI rendering bug
+        // where text set before the control's first layout pass never paints (root-caused
+        // via its actual XAML template/TextBox.cs source — the placeholder-visibility
+        // sync in OnTextChanged, and the underlying text rendering itself, both depend on
+        // the TextEditor already existing, which it doesn't yet here since "Launch
+        // Behavior" starts collapsed). ui:TextBox has none of that; parsed manually below.
+        DelayBox.Text = _config.LaunchDelaySeconds.ToString();
         StartupToggle.IsChecked = _config.LaunchAtWindowsStartup;
         ThemeToggle.IsChecked = _config.Theme == "Dark";
     }
@@ -181,7 +188,12 @@ public partial class SettingsWindow : FluentWindow
         _config.Apps.Clear();
         _config.Apps.AddRange(_workingApps);
 
-        _config.LaunchDelaySeconds = (int)(DelayBox.Value ?? 2);
+        // DelayBox is a plain ui:TextBox (see constructor comment) — parse and clamp
+        // manually, matching the 0-30 range the old NumberBox enforced. An unparseable
+        // value falls back to the prior default of 2 rather than rejecting the save.
+        _config.LaunchDelaySeconds = int.TryParse(DelayBox.Text, out var delaySeconds)
+            ? Math.Clamp(delaySeconds, 0, 30)
+            : 2;
         _config.LaunchAtWindowsStartup = StartupToggle.IsChecked == true;
         _config.Theme = ThemeToggle.IsChecked == true ? "Dark" : "Light";
 

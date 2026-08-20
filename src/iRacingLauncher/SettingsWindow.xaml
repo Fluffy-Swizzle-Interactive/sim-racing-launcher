@@ -69,7 +69,7 @@
                 <ui:CardExpander Header="Launch Behavior" Margin="0,4">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Delay between launches (seconds):" VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <ui:NumberBox x:Name="DelayBox" Minimum="0" Maximum="30" Width="100" />
+                        <ui:TextBox x:Name="DelayBox" Width="100" />
                     </StackPanel>
                 </ui:CardExpander>
 
