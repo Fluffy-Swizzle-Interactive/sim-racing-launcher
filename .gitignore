@@ -1,0 +1,9 @@
+.worktrees/
+
+# .NET build output
+bin/
+obj/
+publish/
+
+# User config (lives in %AppData%, not the repo, but ignore if ever copied in)
+config.json

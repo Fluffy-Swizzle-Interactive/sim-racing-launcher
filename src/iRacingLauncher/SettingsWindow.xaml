@@ -1,0 +1,93 @@
+<ui:FluentWindow x:Class="iRacingLauncher.SettingsWindow"
+                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                  Title="Settings" Height="560" Width="620"
+                  ExtendsContentIntoTitleBar="True"
+                  WindowBackdropType="Mica"
+                  WindowStartupLocation="CenterOwner">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="Settings" />
+
+        <ScrollViewer Grid.Row="1" Margin="16,8">
+            <StackPanel>
+                <ui:CardExpander Header="App List" Margin="0,4" IsExpanded="True">
+                    <StackPanel>
+                        <ItemsControl x:Name="AppEditList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ui:Card Margin="0,4">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                                                <ui:Button Grid.Column="1" Icon="ArrowUp20" Margin="8,0,0,0"
+                                                           Click="MoveAppUpButton_Click" Tag="{Binding}" />
+                                                <ui:Button Grid.Column="2" Icon="ArrowDown20" Margin="4,0,0,0"
+                                                           Click="MoveAppDownButton_Click" Tag="{Binding}" />
+                                                <ui:Button Grid.Column="3" Icon="Delete20" Margin="8,0,0,0"
+                                                           Click="RemoveAppButton_Click" Tag="{Binding}" />
+                                            </Grid>
+                                            <ui:TextBox Text="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}"
+                                                     PlaceholderText="Process name (no .exe)" Margin="0,0,0,4" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:TextBox Grid.Column="0" Text="{Binding Path, UpdateSourceTrigger=PropertyChanged}"
+                                                         PlaceholderText="Path to executable" />
+                                                <ui:Button Grid.Column="1" Content="Browse" Margin="8,0,0,0"
+                                                           Click="BrowseButton_Click" Tag="{Binding}" />
+                                                <ui:Button Grid.Column="2" Content="Auto-Find" Margin="8,0,0,0"
+                                                           Click="AutoFindButton_Click" Tag="{Binding}" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding FindStatus}" FontSize="11" Opacity="0.7" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </ui:Card>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <ui:Button Content="Add App" Icon="Add20" Click="AddAppButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardExpander>
+
+                <ui:CardExpander Header="Launch Behavior" Margin="0,4">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Delay between launches (seconds):" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ui:NumberBox x:Name="DelayBox" Minimum="0" Maximum="30" Width="100" />
+                    </StackPanel>
+                </ui:CardExpander>
+
+                <ui:CardExpander Header="Startup" Margin="0,4">
+                    <ui:ToggleSwitch x:Name="StartupToggle" OnContent="Launch at Windows startup: On"
+                                      OffContent="Launch at Windows startup: Off" />
+                </ui:CardExpander>
+
+                <ui:CardExpander Header="Appearance" Margin="0,4">
+                    <ui:ToggleSwitch x:Name="ThemeToggle" OnContent="Dark theme" OffContent="Light theme"
+                                      Checked="ThemeToggle_Changed" Unchecked="ThemeToggle_Changed" />
+                </ui:CardExpander>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
+            <ui:Button Content="Cancel" Margin="0,0,8,0" Click="CancelButton_Click" />
+            <ui:Button Content="Save" Appearance="Primary" Click="SaveButton_Click" />
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

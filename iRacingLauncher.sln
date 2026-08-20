@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5713C421-9074-42F0-85E1-F63A051A355C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iRacingLauncher", "src\iRacingLauncher\iRacingLauncher.csproj", "{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iRacingLauncher.Tests", "src\iRacingLauncher.Tests\iRacingLauncher.Tests.csproj", "{61DDEEDA-70BC-4155-AD53-0D1B10B23A33}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61DDEEDA-70BC-4155-AD53-0D1B10B23A33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61DDEEDA-70BC-4155-AD53-0D1B10B23A33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61DDEEDA-70BC-4155-AD53-0D1B10B23A33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61DDEEDA-70BC-4155-AD53-0D1B10B23A33}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F70EB8B9-EFC5-4C9B-85F1-9729F493BB3F} = {5713C421-9074-42F0-85E1-F63A051A355C}
+		{61DDEEDA-70BC-4155-AD53-0D1B10B23A33} = {5713C421-9074-42F0-85E1-F63A051A355C}
+	EndGlobalSection
+EndGlobal
