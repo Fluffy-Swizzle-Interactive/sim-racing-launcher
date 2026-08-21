@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\SimRacingLauncher.ico</ApplicationIcon>
     <AssemblyName>SimRacingLauncher</AssemblyName>
     <RootNamespace>iRacingLauncher</RootNamespace>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -22,7 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="iRacingLauncher.ico" />
+    <Resource Include="Assets\SimRacingLauncher.ico" />
+    <Resource Include="Assets\titlebar-icon-dark.png" />
+    <Resource Include="Assets\titlebar-icon-light.png" />
   </ItemGroup>
 
 </Project>

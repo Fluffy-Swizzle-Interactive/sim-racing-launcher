@@ -3,6 +3,7 @@
                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                   Title="Settings" Height="560" Width="620"
+                  Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="Mica"
                   WindowStartupLocation="CenterOwner">
@@ -13,7 +14,11 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Settings" />
+        <ui:TitleBar Grid.Row="0" Title="Settings">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon x:Name="TitleBarIcon" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
 
         <ScrollViewer Grid.Row="1" Margin="16,8">
             <StackPanel>

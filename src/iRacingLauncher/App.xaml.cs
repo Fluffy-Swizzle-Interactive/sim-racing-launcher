@@ -32,7 +32,7 @@ public partial class App : Application
         {
             TooltipText = "Sim Racing Launcher",
             Icon = System.Windows.Media.Imaging.BitmapFrame.Create(
-                new Uri("pack://application:,,,/iRacingLauncher.ico")),
+                new Uri("pack://application:,,,/Assets/SimRacingLauncher.ico")),
             // MenuOnRightClick (and FocusOnLeftClick) are normally pushed into the tray
             // icon's internal manager by InitializeIcon(), which the explicit Register()
             // workaround below bypasses — changing either value here would silently have

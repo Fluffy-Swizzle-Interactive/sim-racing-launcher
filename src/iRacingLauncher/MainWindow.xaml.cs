@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
 using iRacingLauncher.ViewModels;
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace iRacingLauncher;
@@ -35,6 +36,9 @@ public partial class MainWindow : FluentWindow
         _settingsService = settingsService;
         _appFinder = appFinder;
 
+        TitleBarIcon.Source = TitleBarIconSource.ForTheme(ApplicationThemeManager.GetAppTheme());
+        ApplicationThemeManager.Changed += OnAppThemeChanged;
+
         LoadProfileNames();
         LoadRowsFromActiveProfile();
 
@@ -44,6 +48,9 @@ public partial class MainWindow : FluentWindow
         _statusTimer.Tick += (_, _) => RefreshStatuses();
         _statusTimer.Start();
     }
+
+    private void OnAppThemeChanged(ApplicationTheme theme, System.Windows.Media.Color systemAccent) =>
+        TitleBarIcon.Source = TitleBarIconSource.ForTheme(theme);
 
     /// <summary>
     /// Populates the profile switcher from the config's profile list, selecting
@@ -189,6 +196,7 @@ public partial class MainWindow : FluentWindow
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        ApplicationThemeManager.Changed -= OnAppThemeChanged;
         _settingsService.Save(_config);
         base.OnClosing(e);
     }

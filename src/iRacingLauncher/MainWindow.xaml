@@ -4,6 +4,7 @@
                   xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                   xmlns:controls="clr-namespace:iRacingLauncher.Controls"
                   Title="Sim Racing Launcher" Height="480" Width="520"
+                  Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="Mica"
                   WindowStartupLocation="CenterScreen"
@@ -18,6 +19,9 @@
         </Grid.RowDefinitions>
 
         <ui:TitleBar Grid.Row="0" Title="Sim Racing Launcher">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon x:Name="TitleBarIcon" />
+            </ui:TitleBar.Icon>
             <ui:TitleBar.Header>
                 <TextBlock Text="Sim Racing Launcher" Margin="12,0" VerticalAlignment="Center" FontWeight="SemiBold" />
             </ui:TitleBar.Header>

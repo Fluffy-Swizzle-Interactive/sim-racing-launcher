@@ -133,7 +133,13 @@ public partial class SettingsWindow : FluentWindow
         StartupToggle.IsChecked = _config.LaunchAtWindowsStartup;
         MinimizeToTrayToggle.IsChecked = _config.MinimizeToTray;
         ThemeToggle.IsChecked = _config.Theme == "Dark";
+
+        TitleBarIcon.Source = TitleBarIconSource.ForTheme(ApplicationThemeManager.GetAppTheme());
+        ApplicationThemeManager.Changed += OnAppThemeChanged;
     }
+
+    private void OnAppThemeChanged(ApplicationTheme theme, System.Windows.Media.Color systemAccent) =>
+        TitleBarIcon.Source = TitleBarIconSource.ForTheme(theme);
 
     private void LoadEditRowsFromCurrentProfile()
     {
@@ -310,6 +316,7 @@ public partial class SettingsWindow : FluentWindow
             ApplicationThemeManager.Apply(
                 _originalTheme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light);
         }
+        ApplicationThemeManager.Changed -= OnAppThemeChanged;
         base.OnClosed(e);
     }
 
