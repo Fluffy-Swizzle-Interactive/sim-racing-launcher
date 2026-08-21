@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="648" height="126" viewBox="0 0 648 126" fill="none" role="img" aria-label="Sim Racing Launcher">
+  
+  <g transform="translate(6 6)">
+    <rect x="16" y="25" width="50" height="14" rx="7" fill="#b7aee8"></rect>
+  <rect x="16" y="54" width="46" height="14" rx="7" fill="#6b5cc0"></rect>
+  <rect x="16" y="83" width="34" height="14" rx="7" fill="#b7aee8"></rect>
+  <path d="M76 45 L108 61 L76 77 Z" fill="#6b5cc0"></path>
+  </g>
+  <text x="152" y="76" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="34" font-weight="500" letter-spacing="4.8" fill="#1d1f2e">SIM RACING <tspan fill="#6b5cc0">LAUNCHER</tspan></text>
+</svg>

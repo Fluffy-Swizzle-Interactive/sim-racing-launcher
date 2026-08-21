@@ -1,4 +1,7 @@
-# Sim Racing Launcher
+<p align="center">
+  <img src="logos/lockup-dark.svg#gh-dark-mode-only" alt="Sim Racing Launcher" />
+  <img src="logos/lockup-light.svg#gh-light-mode-only" alt="Sim Racing Launcher" />
+</p>
 
 A small Windows desktop app for starting your sim racing toolchain —
 whichever sim you run (iRacing, Assetto Corsa Competizione, Assetto Corsa,
