@@ -101,18 +101,7 @@ Design interface.
 Releases aren't code-signed yet, which is why Windows shows a SmartScreen
 warning on first run. This project is applying for free code signing
 through the [SignPath Foundation](https://signpath.org) for open-source
-projects. A GitHub Actions workflow
-(`.github/workflows/build-and-sign.yml`) is already wired up for it; once
-the application is approved, finish the setup by:
-
-1. Creating a project in the SignPath dashboard and a signing policy
-   named `release-signing` (and optionally `test-signing` for non-release
-   builds).
-2. Adding `SIGNPATH_API_TOKEN` as a repo secret and
-   `SIGNPATH_ORGANIZATION_ID` as a repo variable
-   (Settings → Secrets and variables → Actions).
-
-The workflow signs automatically from there — nothing else to change.
+projects.
 
 ## Privacy
 
