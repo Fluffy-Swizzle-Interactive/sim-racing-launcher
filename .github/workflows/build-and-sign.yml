@@ -1,0 +1,63 @@
+name: build-and-sign
+run-name: Build, test, and sign
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build_and_sign:
+    runs-on: windows-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: test
+        run: dotnet test src/iRacingLauncher.Tests/iRacingLauncher.Tests.csproj -c Release
+
+      - name: publish
+        run: >
+          dotnet publish src/iRacingLauncher/iRacingLauncher.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+
+      - name: upload-unsigned-artifact
+        id: upload-unsigned-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimRacingLauncher-unsigned
+          if-no-files-found: error
+          path: src/iRacingLauncher/bin/Release/net10.0-windows/win-x64/publish/SimRacingLauncher.exe
+
+      # Skips until the SignPath application is approved and the
+      # SIGNPATH_ORGANIZATION_ID repo variable is set — see the README's
+      # "Code signing" section for the one-time setup steps.
+      - name: sign
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: "${{ secrets.SIGNPATH_API_TOKEN }}"
+          organization-id: "${{ vars.SIGNPATH_ORGANIZATION_ID }}"
+          project-slug: "sim-racing-launcher"
+          signing-policy-slug: >-
+            ${{ (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+              && 'release-signing'
+              || 'test-signing' }}
+          github-artifact-id: "${{ steps.upload-unsigned-artifact.outputs.artifact-id }}"
+          wait-for-completion: true
+          output-artifact-directory: SimRacingLauncher-signed
+
+      - name: upload-signed-artifact
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimRacingLauncher-signed
+          path: SimRacingLauncher-signed
+          if-no-files-found: error
