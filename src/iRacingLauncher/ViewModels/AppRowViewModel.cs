@@ -45,7 +45,6 @@ public class AppRowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(StatusColor));
             OnPropertyChanged(nameof(IsStartable));
-            if (!IsStartable) Selected = false;
         }
     }
 

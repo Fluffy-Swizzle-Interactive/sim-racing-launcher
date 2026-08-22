@@ -72,23 +72,60 @@ public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChan
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
 }
 
+/// <summary>
+/// One row in the "Selected Apps" checklist for whichever profile is currently
+/// being edited. An app the profile doesn't reference yet (no ProfileAppEntry in
+/// its AppRefs) still gets a row here — unchecked, with a null Entry — so the user
+/// has a way to enable it. Checking that row lazily creates a real ProfileAppEntry
+/// and appends it to the owning profile's AppRefs; unchecking an already-referenced
+/// row just flips its existing Entry.Selected rather than removing it, so its
+/// position in AppRefs (and thus its place in per-profile launch order) survives
+/// being unchecked and re-checked later.
+/// </summary>
 public class ProfileAppSelectionRowViewModel : System.ComponentModel.INotifyPropertyChanged
 {
     public AppDefinition Definition { get; }
-    public ProfileAppEntry Entry { get; }
+    private readonly Profile _owningProfile;
+    private ProfileAppEntry? _entry;
 
-    public ProfileAppSelectionRowViewModel(AppDefinition definition, ProfileAppEntry entry)
+    /// <summary>Null until this row's app has been checked at least once for this profile.</summary>
+    public ProfileAppEntry? Entry => _entry;
+
+    /// <summary>Whether this profile already has a ProfileAppEntry for this app (vs. this row existing only to offer the option).</summary>
+    public bool IsReferenced => _entry is not null;
+
+    public ProfileAppSelectionRowViewModel(AppDefinition definition, ProfileAppEntry? entry, Profile owningProfile)
     {
         Definition = definition;
-        Entry = entry;
+        _entry = entry;
+        _owningProfile = owningProfile;
     }
 
     public string Name => Definition.Name;
 
     public bool Selected
     {
-        get => Entry.Selected;
-        set { Entry.Selected = value; OnPropertyChanged(); }
+        get => _entry?.Selected ?? false;
+        set
+        {
+            if (_entry is null)
+            {
+                // Unchecking a row that was never referenced (already false) is a no-op —
+                // don't create an entry just to record "not selected".
+                if (!value) return;
+
+                _entry = new ProfileAppEntry { AppId = Definition.Id, Selected = true };
+                _owningProfile.AppRefs.Add(_entry);
+                OnPropertyChanged(nameof(Entry));
+                OnPropertyChanged(nameof(IsReferenced));
+            }
+            else
+            {
+                if (_entry.Selected == value) return;
+                _entry.Selected = value;
+            }
+            OnPropertyChanged();
+        }
     }
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -112,9 +149,10 @@ public partial class SettingsWindow : FluentWindow
     private readonly string _originalTheme;
 
     /// <summary>
-    /// The profile whose apps the "App List" card is currently showing/editing.
-    /// Tracked by reference (not name) so renaming it in the Profiles list doesn't
-    /// lose track of it.
+    /// The profile whose apps the "Selected Apps" card is currently showing/editing
+    /// (checked/unchecked against the shared "Apps" registry card). Tracked by
+    /// reference (not name) so renaming it in the Profiles list doesn't lose track
+    /// of it.
     /// </summary>
     private Profile _currentEditingProfile;
 
@@ -185,11 +223,26 @@ public partial class SettingsWindow : FluentWindow
     private void LoadProfileAppRowsFromCurrentProfile()
     {
         _profileAppRows.Clear();
+        var referencedAppIds = new HashSet<string>();
         foreach (var entry in _currentEditingProfile.AppRefs)
         {
-            var definition = _workingApps.First(a => a.Id == entry.AppId);
-            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(definition, entry));
+            // Cascading delete keeps AppRefs in sync with the registry, but a
+            // hand-edited config could still carry a stale AppId — skip that row
+            // rather than crashing Settings.
+            var definition = _workingApps.FirstOrDefault(a => a.Id == entry.AppId);
+            if (definition is null) continue;
+            referencedAppIds.Add(entry.AppId);
+            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(definition, entry, _currentEditingProfile));
         }
+
+        // Apps this profile doesn't reference yet are appended unchecked, so there's
+        // always a way to enable any app for any profile — see finding 3.
+        foreach (var app in _workingApps)
+        {
+            if (referencedAppIds.Contains(app.Id)) continue;
+            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(app, entry: null, _currentEditingProfile));
+        }
+
         EditingProfileLabel.Text = $"Selected for: {_currentEditingProfile.Name}";
     }
 
@@ -259,21 +312,25 @@ public partial class SettingsWindow : FluentWindow
     private void MoveProfileAppUpButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
+        if (row.Entry is not { } entry) return;
         var index = _profileAppRows.IndexOf(row);
         if (index <= 0) return;
         _profileAppRows.Move(index, index - 1);
-        _currentEditingProfile.AppRefs.Remove(row.Entry);
-        _currentEditingProfile.AppRefs.Insert(index - 1, row.Entry);
+        _currentEditingProfile.AppRefs.Remove(entry);
+        _currentEditingProfile.AppRefs.Insert(index - 1, entry);
     }
 
     private void MoveProfileAppDownButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
+        if (row.Entry is not { } entry) return;
         var index = _profileAppRows.IndexOf(row);
         if (index < 0 || index >= _profileAppRows.Count - 1) return;
         _profileAppRows.Move(index, index + 1);
-        _currentEditingProfile.AppRefs.Remove(row.Entry);
-        _currentEditingProfile.AppRefs.Insert(index + 1, row.Entry);
+        _currentEditingProfile.AppRefs.Remove(entry);
+        _currentEditingProfile.AppRefs.Insert(index + 1, entry);
     }
 
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
@@ -325,7 +382,12 @@ public partial class SettingsWindow : FluentWindow
         row.FindStatus = "Searching...";
         try
         {
-            var name = row.Name;
+            // Prefer ProcessName: it's the exe/shortcut base name we actually expect
+            // to find on disk (e.g. "Content Manager"), whereas Name is a free-text
+            // display label that can diverge from it (e.g. "Assetto Corsa (Content
+            // Manager)"). Fall back to Name only when ProcessName hasn't been filled
+            // in yet, such as for a brand-new user-added app.
+            var name = string.IsNullOrWhiteSpace(row.ProcessName) ? row.Name : row.ProcessName;
             var path = row.Path;
             var found = await Task.Run(() => _appFinder.FindPath(name, path));
             if (found is not null)

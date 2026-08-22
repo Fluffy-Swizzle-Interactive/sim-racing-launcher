@@ -400,6 +400,102 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void Load_WhenProfilesIsNull_FallsBackToDefaultsInsteadOfThrowing()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            // Embedded-per-profile shape (has "profiles" key, no top-level "apps"),
+            // but "profiles" is JSON null rather than an array.
+            File.WriteAllText(path, """{ "profiles": null }""");
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            Assert.Equal(5, config.ResolveApps(config.ActiveProfile.AppRefs).Count());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_WhenEmbeddedAppHasNullProcessName_MigratesWithoutThrowing()
+    {
+        // The null-guard normalizes a null ProcessName to "" before it ever reaches
+        // the GroupBy/dictionary-indexer merge logic, so this specific input migrates
+        // successfully (no data loss) rather than needing the catch-all reset — the
+        // important behavior under test is that Load() never throws.
+        var path = TempConfigPath();
+        try
+        {
+            File.WriteAllText(path, """
+                {
+                  "activeProfileName": "iRacing",
+                  "profiles": [
+                    {
+                      "name": "iRacing",
+                      "apps": [
+                        { "name": "iRacing", "processName": null, "path": "", "selected": true }
+                      ]
+                    }
+                  ]
+                }
+                """);
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            var app = Assert.Single(config.Apps);
+            Assert.Equal(string.Empty, app.ProcessName);
+            Assert.Single(config.Profiles);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_WhenJsonRootIsNotAnObject_FallsBackToDefaultsInsteadOfThrowing()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            File.WriteAllText(path, "null");
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            Assert.Equal(5, config.ResolveApps(config.ActiveProfile.AppRefs).Count());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_WhenJsonRootIsAnArray_FallsBackToDefaultsInsteadOfThrowing()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            File.WriteAllText(path, "[]");
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            Assert.Equal(5, config.ResolveApps(config.ActiveProfile.AppRefs).Count());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void GetDefaultConfigPath_ReturnsAppDataPathAndCreatesDirectory()
     {
         var path = SettingsService.GetDefaultConfigPath();

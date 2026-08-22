@@ -107,6 +107,15 @@ public class SettingsService
         {
             return ResetToDefaults();
         }
+        catch (Exception)
+        {
+            // Catch-all for anything the migration path can throw that the specific
+            // catches above don't cover (e.g. a null "profiles"/"apps" array, a null
+            // ProcessName on an embedded legacy app, or a non-object JSON root). The
+            // design contract is that a bug in the merge logic surfaces as a fallback
+            // to defaults rather than a crash — see design spec.
+            return ResetToDefaults();
+        }
     }
 
     private static bool HasProperty(JsonElement root, string name) =>
@@ -151,10 +160,12 @@ public class SettingsService
 
     /// <summary>
     /// Groups every embedded app across all legacy profiles by ProcessName
-    /// (case-insensitive), creating one AppDefinition per group — Path/Name/
-    /// Arguments taken from the first group member with a non-empty Path, falling
-    /// back to the first member overall. Each profile gets an AppRefs list
-    /// preserving its original per-app order and Selected value.
+    /// (case-insensitive), creating one AppDefinition per group — Path/Name taken
+    /// from the first group member with a non-empty Path, falling back to the first
+    /// member overall. Arguments always starts empty: legacy embedded entries never
+    /// had an arguments field, so a migrated app has none until the user sets one
+    /// afterward in the Apps card. Each profile gets an AppRefs list preserving its
+    /// original per-app order and Selected value.
     /// </summary>
     private static LauncherConfig MergeEmbeddedApps(
         int launchDelaySeconds,
@@ -166,7 +177,7 @@ public class SettingsService
     {
         var groups = legacyProfiles
             .SelectMany(p => p.Apps)
-            .GroupBy(a => a.ProcessName, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(a => a.ProcessName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var appsByProcessName = new Dictionary<string, AppDefinition>(StringComparer.OrdinalIgnoreCase);
@@ -178,7 +189,7 @@ public class SettingsService
             {
                 Id = Guid.NewGuid().ToString("N"),
                 Name = winner.Name,
-                ProcessName = group.First().ProcessName,
+                ProcessName = group.First().ProcessName ?? string.Empty,
                 Path = winner.Path,
                 Arguments = string.Empty,
             };
@@ -190,7 +201,7 @@ public class SettingsService
         {
             Name = p.Name,
             AppRefs = p.Apps
-                .Select(a => new ProfileAppEntry { AppId = appsByProcessName[a.ProcessName].Id, Selected = a.Selected })
+                .Select(a => new ProfileAppEntry { AppId = appsByProcessName[a.ProcessName ?? string.Empty].Id, Selected = a.Selected })
                 .ToList(),
         }).ToList();
 

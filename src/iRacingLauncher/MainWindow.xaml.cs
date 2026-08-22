@@ -71,7 +71,11 @@ public partial class MainWindow : FluentWindow
         _rows.Clear();
         foreach (var entry in _config.ActiveProfile.AppRefs)
         {
-            var definition = _config.Apps.First(a => a.Id == entry.AppId);
+            // Cascading delete in Settings keeps AppRefs in sync with the registry,
+            // but a hand-edited config could still carry a stale AppId — skip that
+            // row rather than crashing the whole main window.
+            var definition = _config.Apps.FirstOrDefault(a => a.Id == entry.AppId);
+            if (definition is null) continue;
             _rows.Add(new AppRowViewModel(definition, entry) { Icon = TryLoadIcon(definition.Path) });
         }
         AppList.ItemsSource = _rows;
@@ -196,6 +200,10 @@ public partial class MainWindow : FluentWindow
     {
         if (_config.CloseToTray && !_isExiting)
         {
+            // Persist here too — a Windows logoff/shutdown (or any other close path
+            // that isn't tray "Exit") lands here and must not silently drop unsaved
+            // changes just because the window is hiding instead of exiting.
+            _settingsService.Save(_config);
             e.Cancel = true;
             Hide();
             return;
