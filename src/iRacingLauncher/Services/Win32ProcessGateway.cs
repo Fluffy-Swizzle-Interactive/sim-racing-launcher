@@ -15,7 +15,7 @@ public class Win32ProcessGateway : IProcessGateway
         return Process.GetProcessesByName(processName).Length > 0;
     }
 
-    public bool Start(string exePath)
+    public bool Start(string exePath, string arguments)
     {
         // A blank path throws InvalidOperationException and a missing file throws
         // Win32Exception, so screen both out before asking the shell to launch.
@@ -28,6 +28,7 @@ public class Win32ProcessGateway : IProcessGateway
         {
             Process.Start(new ProcessStartInfo(exePath)
             {
+                Arguments = arguments,
                 WindowStyle = ProcessWindowStyle.Minimized,
                 UseShellExecute = true,
             });
