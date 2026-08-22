@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using iRacingLauncher.Services;
 using Wpf.Ui;
@@ -49,7 +50,8 @@ public partial class App : Application
         {
             try
             {
-                await processService.LaunchSelectedAsync(config.ActiveProfile.Apps, config.LaunchDelaySeconds);
+                var selectedApps = config.ResolveApps(config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
+                await processService.LaunchAppsAsync(selectedApps, config.LaunchDelaySeconds);
             }
             catch (Exception)
             {

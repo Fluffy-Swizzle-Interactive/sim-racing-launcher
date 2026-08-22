@@ -69,9 +69,10 @@ public partial class MainWindow : FluentWindow
     private void LoadRowsFromActiveProfile()
     {
         _rows.Clear();
-        foreach (var app in _config.ActiveProfile.Apps)
+        foreach (var entry in _config.ActiveProfile.AppRefs)
         {
-            _rows.Add(new AppRowViewModel(app) { Icon = TryLoadIcon(app.Path) });
+            var definition = _config.Apps.First(a => a.Id == entry.AppId);
+            _rows.Add(new AppRowViewModel(definition, entry) { Icon = TryLoadIcon(definition.Path) });
         }
         AppList.ItemsSource = _rows;
     }
@@ -93,8 +94,8 @@ public partial class MainWindow : FluentWindow
         {
             // A blank path is invalid, not implicitly valid — an app with no path
             // configured must read "Path not found" and have Start disabled.
-            row.PathValid = File.Exists(row.Model.Path);
-            row.IsRunning = _processService.IsRunning(row.Model);
+            row.PathValid = File.Exists(row.Definition.Path);
+            row.IsRunning = _processService.IsRunning(row.Definition);
         }
     }
 
@@ -128,7 +129,8 @@ public partial class MainWindow : FluentWindow
             LaunchButton.Content = $"Launching {p.Current} of {p.Total}…");
         try
         {
-            var result = await _processService.LaunchSelectedAsync(_config.ActiveProfile.Apps, _config.LaunchDelaySeconds, progress);
+            var selectedApps = _config.ResolveApps(_config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
+            var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress);
             if (result.Failed.Count > 0)
             {
                 LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
@@ -150,7 +152,7 @@ public partial class MainWindow : FluentWindow
 
     private void StopAllButton_Click(object sender, RoutedEventArgs e)
     {
-        _processService.StopAll(_config.ActiveProfile.Apps);
+        _processService.StopAll(_config.ResolveApps(_config.ActiveProfile.AppRefs));
         RefreshStatuses();
     }
 
@@ -158,7 +160,7 @@ public partial class MainWindow : FluentWindow
     {
         try
         {
-            _processService.StartApp(row.Model);
+            _processService.StartApp(row.Definition);
         }
         catch (Exception)
         {
@@ -171,7 +173,7 @@ public partial class MainWindow : FluentWindow
 
     private void AppRow_StopRequested(object? sender, AppRowViewModel row)
     {
-        _processService.StopApp(row.Model);
+        _processService.StopApp(row.Definition);
         RefreshStatuses();
     }
 
