@@ -56,9 +56,39 @@
                     </StackPanel>
                 </ui:CardExpander>
 
-                <ui:CardExpander Header="App List" Margin="0,4" IsExpanded="True">
+                <ui:CardExpander Header="Selected Apps" Margin="0,4" IsExpanded="True">
                     <StackPanel>
-                        <TextBlock x:Name="EditingProfileLabel" Text="Editing:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <TextBlock x:Name="EditingProfileLabel" Text="Selected for:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
+                        <ItemsControl x:Name="ProfileAppList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ui:Card Margin="0,4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
+                                                      IsChecked="{Binding Selected, Mode=TwoWay}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" />
+                                            <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Margin="8,0,0,0"
+                                                       Click="MoveProfileAppUpButton_Click" Tag="{Binding}" />
+                                            <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Margin="4,0,0,0"
+                                                       Click="MoveProfileAppDownButton_Click" Tag="{Binding}" />
+                                        </Grid>
+                                    </ui:Card>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ui:CardExpander>
+
+                <ui:CardExpander Header="Apps" Margin="0,4" IsExpanded="True">
+                    <StackPanel>
+                        <TextBlock Text="Configure each app once here, then enable it per game below."
+                                   FontSize="11" Opacity="0.6" Margin="0,0,0,8" TextWrapping="Wrap" />
                         <ItemsControl x:Name="AppEditList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -68,20 +98,14 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
-                                                <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Margin="8,0,0,0"
-                                                           Click="MoveAppUpButton_Click" Tag="{Binding}" />
-                                                <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Margin="4,0,0,0"
-                                                           Click="MoveAppDownButton_Click" Tag="{Binding}" />
-                                                <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon Delete20}" ToolTip="Remove" Margin="8,0,0,0"
+                                                <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon Delete20}" ToolTip="Remove" Margin="8,0,0,0"
                                                            Click="RemoveAppButton_Click" Tag="{Binding}" />
                                             </Grid>
                                             <ui:TextBox Text="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}"
                                                      PlaceholderText="Process name (no .exe)" Margin="0,0,0,4" />
-                                            <Grid>
+                                            <Grid Margin="0,0,0,4">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
@@ -94,6 +118,8 @@
                                                 <ui:Button Grid.Column="2" Content="Auto-Find" Icon="{ui:SymbolIcon Search20}" Margin="8,0,0,0"
                                                            Click="AutoFindButton_Click" Tag="{Binding}" />
                                             </Grid>
+                                            <ui:TextBox Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}"
+                                                     PlaceholderText="Launch arguments (optional)" />
                                             <TextBlock Text="{Binding FindStatus}" FontSize="11" Opacity="0.7" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </ui:Card>

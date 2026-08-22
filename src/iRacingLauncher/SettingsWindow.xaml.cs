@@ -15,9 +15,9 @@ namespace iRacingLauncher;
 
 public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
 {
-    public AppEntry Model { get; }
+    public AppDefinition Model { get; }
 
-    public AppEditRowViewModel(AppEntry model) => Model = model;
+    public AppEditRowViewModel(AppDefinition model) => Model = model;
 
     public string Name
     {
@@ -35,6 +35,12 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
     {
         get => Model.Path;
         set { Model.Path = value; OnPropertyChanged(); }
+    }
+
+    public string Arguments
+    {
+        get => Model.Arguments;
+        set { Model.Arguments = value; OnPropertyChanged(); }
     }
 
     private string _findStatus = string.Empty;
@@ -66,6 +72,30 @@ public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChan
         PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
 }
 
+public class ProfileAppSelectionRowViewModel : System.ComponentModel.INotifyPropertyChanged
+{
+    public AppDefinition Definition { get; }
+    public ProfileAppEntry Entry { get; }
+
+    public ProfileAppSelectionRowViewModel(AppDefinition definition, ProfileAppEntry entry)
+    {
+        Definition = definition;
+        Entry = entry;
+    }
+
+    public string Name => Definition.Name;
+
+    public bool Selected
+    {
+        get => Entry.Selected;
+        set { Entry.Selected = value; OnPropertyChanged(); }
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
 public partial class SettingsWindow : FluentWindow
 {
     private const string StartupRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -75,7 +105,9 @@ public partial class SettingsWindow : FluentWindow
     private readonly SettingsService _settingsService;
     private readonly AppFinderService _appFinder;
     private readonly ObservableCollection<ProfileEditRowViewModel> _profileEditRows = new();
-    private readonly ObservableCollection<AppEditRowViewModel> _editRows = new();
+    private readonly ObservableCollection<AppEditRowViewModel> _appEditRows = new();
+    private readonly ObservableCollection<ProfileAppSelectionRowViewModel> _profileAppRows = new();
+    private readonly List<AppDefinition> _workingApps;
     private readonly List<Profile> _workingProfiles;
     private readonly string _originalTheme;
 
@@ -104,11 +136,14 @@ public partial class SettingsWindow : FluentWindow
         _originalTheme = _config.Theme;
 
         // Work on a deep copy so Cancel can genuinely discard edits — see task-7 review fix.
+        _workingApps = _config.Apps
+            .Select(a => new AppDefinition { Id = a.Id, Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Arguments = a.Arguments })
+            .ToList();
         _workingProfiles = _config.Profiles
             .Select(p => new Profile
             {
                 Name = p.Name,
-                Apps = p.Apps.Select(a => new AppEntry { Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Selected = a.Selected }).ToList(),
+                AppRefs = p.AppRefs.Select(r => new ProfileAppEntry { AppId = r.AppId, Selected = r.Selected }).ToList(),
             })
             .ToList();
 
@@ -118,10 +153,16 @@ public partial class SettingsWindow : FluentWindow
         }
         ProfileEditList.ItemsSource = _profileEditRows;
 
+        foreach (var app in _workingApps)
+        {
+            _appEditRows.Add(new AppEditRowViewModel(app));
+        }
+        AppEditList.ItemsSource = _appEditRows;
+        ProfileAppList.ItemsSource = _profileAppRows;
+
         _workingActiveProfile = _workingProfiles.FirstOrDefault(p => p.Name == _config.ActiveProfileName) ?? _workingProfiles[0];
         _currentEditingProfile = _workingActiveProfile;
-        AppEditList.ItemsSource = _editRows;
-        LoadEditRowsFromCurrentProfile();
+        LoadProfileAppRowsFromCurrentProfile();
 
         // Plain ui:TextBox, not ui:NumberBox: NumberBox has a real WPF-UI rendering bug
         // where text set before the control's first layout pass never paints (root-caused
@@ -141,24 +182,31 @@ public partial class SettingsWindow : FluentWindow
     private void OnAppThemeChanged(ApplicationTheme theme, System.Windows.Media.Color systemAccent) =>
         TitleBarIcon.Source = TitleBarIconSource.ForTheme(theme);
 
-    private void LoadEditRowsFromCurrentProfile()
+    private void LoadProfileAppRowsFromCurrentProfile()
     {
-        _editRows.Clear();
-        foreach (var app in _currentEditingProfile.Apps)
+        _profileAppRows.Clear();
+        foreach (var entry in _currentEditingProfile.AppRefs)
         {
-            _editRows.Add(new AppEditRowViewModel(app));
+            var definition = _workingApps.First(a => a.Id == entry.AppId);
+            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(definition, entry));
         }
-        EditingProfileLabel.Text = $"Editing: {_currentEditingProfile.Name}";
+        EditingProfileLabel.Text = $"Selected for: {_currentEditingProfile.Name}";
     }
 
     private void AddProfileButton_Click(object sender, RoutedEventArgs e)
     {
-        var profile = new Profile { Name = "New Profile", Apps = new List<AppEntry>() };
+        // A new profile starts with every existing app selected, same default as
+        // a newly-added app being selected in every existing profile.
+        var profile = new Profile
+        {
+            Name = "New Profile",
+            AppRefs = _workingApps.Select(a => new ProfileAppEntry { AppId = a.Id, Selected = true }).ToList(),
+        };
         _workingProfiles.Add(profile);
         _profileEditRows.Add(new ProfileEditRowViewModel(profile));
 
         _currentEditingProfile = profile;
-        LoadEditRowsFromCurrentProfile();
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void RemoveProfileButton_Click(object sender, RoutedEventArgs e)
@@ -173,7 +221,7 @@ public partial class SettingsWindow : FluentWindow
         if (ReferenceEquals(_currentEditingProfile, row.Model))
         {
             _currentEditingProfile = _workingProfiles[0];
-            LoadEditRowsFromCurrentProfile();
+            LoadProfileAppRowsFromCurrentProfile();
         }
         if (ReferenceEquals(_workingActiveProfile, row.Model))
         {
@@ -205,41 +253,55 @@ public partial class SettingsWindow : FluentWindow
     {
         if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
         _currentEditingProfile = row.Model;
-        LoadEditRowsFromCurrentProfile();
+        LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    private void MoveProfileAppUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        var index = _profileAppRows.IndexOf(row);
+        if (index <= 0) return;
+        _profileAppRows.Move(index, index - 1);
+        _currentEditingProfile.AppRefs.Remove(row.Entry);
+        _currentEditingProfile.AppRefs.Insert(index - 1, row.Entry);
+    }
+
+    private void MoveProfileAppDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        var index = _profileAppRows.IndexOf(row);
+        if (index < 0 || index >= _profileAppRows.Count - 1) return;
+        _profileAppRows.Move(index, index + 1);
+        _currentEditingProfile.AppRefs.Remove(row.Entry);
+        _currentEditingProfile.AppRefs.Insert(index + 1, row.Entry);
     }
 
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
     {
-        var app = new AppEntry { Name = "New App", ProcessName = string.Empty, Path = string.Empty, Selected = true };
-        _currentEditingProfile.Apps.Add(app);
-        _editRows.Add(new AppEditRowViewModel(app));
+        var app = new AppDefinition { Id = Guid.NewGuid().ToString("N"), Name = "New App", ProcessName = string.Empty, Path = string.Empty, Arguments = string.Empty };
+        _workingApps.Add(app);
+        _appEditRows.Add(new AppEditRowViewModel(app));
+
+        // A newly-added app starts selected in every existing profile.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.AppRefs.Add(new ProfileAppEntry { AppId = app.Id, Selected = true });
+        }
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void RemoveAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _editRows.Remove(row);
-    }
+        _workingApps.Remove(row.Model);
+        _appEditRows.Remove(row);
 
-    private void MoveAppUpButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        var index = _editRows.IndexOf(row);
-        if (index <= 0) return;
-        _editRows.Move(index, index - 1);
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _currentEditingProfile.Apps.Insert(index - 1, row.Model);
-    }
-
-    private void MoveAppDownButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        var index = _editRows.IndexOf(row);
-        if (index < 0 || index >= _editRows.Count - 1) return;
-        _editRows.Move(index, index + 1);
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _currentEditingProfile.Apps.Insert(index + 1, row.Model);
+        // Deleting an app from the registry cascades to every profile referencing it.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.AppRefs.RemoveAll(r => r.AppId == row.Model.Id);
+        }
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -295,10 +357,12 @@ public partial class SettingsWindow : FluentWindow
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        // Must mutate the existing List<Profile> in place rather than reassigning
-        // _config.Profiles: App.xaml.cs's tray "Launch Selected" closure captures
-        // config and reads config.ActiveProfile.Apps lazily, so swapping the list
-        // reference would silently leave the tray menu launching a stale app list.
+        // Must mutate the existing lists in place rather than reassigning
+        // _config.Apps/_config.Profiles: App.xaml.cs's tray "Launch Selected" closure
+        // captures config and reads config.ActiveProfile lazily, so swapping either
+        // list reference would silently leave the tray menu launching stale data.
+        _config.Apps.Clear();
+        _config.Apps.AddRange(_workingApps);
         _config.Profiles.Clear();
         _config.Profiles.AddRange(_workingProfiles);
         _config.ActiveProfileName = _workingActiveProfile.Name;
