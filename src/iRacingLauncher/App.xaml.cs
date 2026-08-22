@@ -58,7 +58,11 @@ public partial class App : Application
             }
         };
         var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };
-        exitItem.Click += (_, _) => Shutdown();
+        exitItem.Click += (_, _) =>
+        {
+            _mainWindow?.PrepareForExit();
+            Shutdown();
+        };
         menu.Items.Add(showItem);
         menu.Items.Add(launchItem);
         menu.Items.Add(exitItem);

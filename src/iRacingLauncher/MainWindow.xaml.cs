@@ -23,6 +23,7 @@ public partial class MainWindow : FluentWindow
     private readonly AppFinderService _appFinder;
     private readonly ObservableCollection<AppRowViewModel> _rows = new();
     private readonly DispatcherTimer _statusTimer;
+    private bool _isExiting;
 
     public MainWindow(
         LauncherConfig config,
@@ -186,16 +187,18 @@ public partial class MainWindow : FluentWindow
         RefreshStatuses();
     }
 
-    private void FluentWindow_StateChanged(object? sender, EventArgs e)
-    {
-        if (WindowState == WindowState.Minimized && _config.MinimizeToTray)
-        {
-            Hide();
-        }
-    }
+    /// <summary>Called before a real shutdown (tray "Exit") so OnClosing lets it through instead of hiding to tray.</summary>
+    public void PrepareForExit() => _isExiting = true;
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        if (_config.CloseToTray && !_isExiting)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
         ApplicationThemeManager.Changed -= OnAppThemeChanged;
         _settingsService.Save(_config);
         base.OnClosing(e);

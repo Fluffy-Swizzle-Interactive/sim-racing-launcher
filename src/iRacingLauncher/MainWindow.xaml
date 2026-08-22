@@ -7,8 +7,7 @@
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="Mica"
-                  WindowStartupLocation="CenterScreen"
-                  StateChanged="FluentWindow_StateChanged">
+                  WindowStartupLocation="CenterScreen">
     <Grid Margin="0,0,0,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
