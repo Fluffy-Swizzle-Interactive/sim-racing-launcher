@@ -181,6 +181,26 @@ public partial class SettingsWindow : FluentWindow
         }
     }
 
+    private void MoveProfileUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
+        var index = _profileEditRows.IndexOf(row);
+        if (index <= 0) return;
+        _profileEditRows.Move(index, index - 1);
+        _workingProfiles.Remove(row.Model);
+        _workingProfiles.Insert(index - 1, row.Model);
+    }
+
+    private void MoveProfileDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
+        var index = _profileEditRows.IndexOf(row);
+        if (index < 0 || index >= _profileEditRows.Count - 1) return;
+        _profileEditRows.Move(index, index + 1);
+        _workingProfiles.Remove(row.Model);
+        _workingProfiles.Insert(index + 1, row.Model);
+    }
+
     private void EditProfileAppsButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
