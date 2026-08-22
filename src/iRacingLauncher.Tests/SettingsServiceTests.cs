@@ -35,6 +35,17 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void CreateDefaultConfig_AcProfileLaunchesViaContentManager()
+    {
+        var config = SettingsService.CreateDefaultConfig();
+
+        var acProfile = config.Profiles.Single(p => p.Name == "AC");
+        var sim = acProfile.Apps[0];
+
+        Assert.Equal("Content Manager", sim.ProcessName);
+    }
+
+    [Fact]
     public void CreateDefaultConfig_ShipsIRacingAccAndAcProfilesWithNoPaths()
     {
         var config = SettingsService.CreateDefaultConfig();

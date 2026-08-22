@@ -189,7 +189,7 @@ public class SettingsService
                     Name = "AC",
                     Apps = new List<AppEntry>
                     {
-                        Sim("Assetto Corsa", "acs"),
+                        Sim("Assetto Corsa (Content Manager)", "Content Manager"),
                         CrewChief(), TradingPaints(), RaceLab(),
                     },
                 },
