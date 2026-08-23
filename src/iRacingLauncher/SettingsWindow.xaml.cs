@@ -421,8 +421,49 @@ public partial class SettingsWindow : FluentWindow
         ApplicationThemeManager.Apply(theme);
     }
 
+    /// <summary>
+    /// Blocks a save that would leave the profile list ambiguous. The active profile
+    /// is tracked by name (<see cref="LauncherConfig.ActiveProfile"/> looks it up
+    /// with FirstOrDefault), so two profiles sharing a name makes the second one
+    /// permanently unreachable — picking it in the main window's dropdown silently
+    /// activates the first instead. A blank name is just as bad: it shows as an
+    /// empty row in that dropdown with no way to tell what it is.
+    /// </summary>
+    /// <returns>An error to show the user, or null when the names are usable.</returns>
+    private string? ValidateProfileNames()
+    {
+        if (_workingProfiles.Any(p => string.IsNullOrWhiteSpace(p.Name)))
+        {
+            return "Every profile needs a name. Give the blank one a name, or delete it.";
+        }
+
+        var duplicate = _workingProfiles
+            .GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(g => g.Count() > 1);
+
+        return duplicate is null
+            ? null
+            : $"Two profiles are both named \"{duplicate.Key}\". Profile names have to be unique.";
+    }
+
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
+        var validationError = ValidateProfileNames();
+        if (validationError is not null)
+        {
+            ValidationInfoBar.Message = validationError;
+            ValidationInfoBar.IsOpen = true;
+            return;
+        }
+        ValidationInfoBar.IsOpen = false;
+
+        // Names are stored trimmed so " iRacing" and "iRacing" can't round-trip into
+        // the duplicate case the check above just rejected.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.Name = profile.Name.Trim();
+        }
+
         // Must mutate the existing lists in place rather than reassigning
         // _config.Apps/_config.Profiles: App.xaml.cs's tray "Launch Selected" closure
         // captures config and reads config.ActiveProfile lazily, so swapping either

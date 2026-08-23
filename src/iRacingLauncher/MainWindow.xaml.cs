@@ -116,7 +116,11 @@ public partial class MainWindow : FluentWindow
 
     private void RefreshStatuses()
     {
-        foreach (var row in _rows)
+        // Iterate a snapshot: a row's PropertyChanged handler removes it from _rows
+        // when it becomes deselected, and this runs on a 2-second timer tick, so
+        // enumerating the live collection would risk tearing down the whole window
+        // with a "collection was modified" exception mid-refresh.
+        foreach (var row in _rows.ToList())
         {
             // A blank path is invalid, not implicitly valid — an app with no path
             // configured must read "Path not found" and have Start disabled.
@@ -156,22 +160,33 @@ public partial class MainWindow : FluentWindow
     /// </summary>
     public async Task LaunchSelectedAsync()
     {
-        // A prior in-flight launch (e.g. from the tray menu) must not keep running
-        // alongside this one, and Stop All must be able to reach whichever is current.
-        _launchCts?.Cancel();
-        _launchCts?.Dispose();
+        // Disabling the Launch button doesn't prevent re-entry: the tray menu's own
+        // "Launch Selected" calls straight in here, and works while the window is
+        // hidden. So supersede any launch already in flight rather than running two
+        // batches over the same apps. Each invocation owns exactly one token source
+        // and disposes it in its own finally, so cancelling `previous` here can
+        // never touch one that's already been disposed.
+        var previous = _launchCts;
         var cts = new System.Threading.CancellationTokenSource();
         _launchCts = cts;
+        previous?.Cancel();
 
         LaunchButton.IsEnabled = false;
         LaunchInfoBar.IsOpen = false;
         var progress = new Progress<(int Current, int Total)>(p =>
-            LaunchButton.Content = $"Launching {p.Current} of {p.Total}…");
+        {
+            // A superseded batch must not keep painting its own progress over the
+            // batch that replaced it.
+            if (ReferenceEquals(_launchCts, cts))
+            {
+                LaunchButton.Content = $"Launching {p.Current} of {p.Total}…";
+            }
+        });
         try
         {
             var selectedApps = _config.ResolveApps(_config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
             var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress, cts.Token);
-            if (result.Failed.Count > 0)
+            if (result.Failed.Count > 0 && ReferenceEquals(_launchCts, cts))
             {
                 LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
                 LaunchInfoBar.IsOpen = true;
@@ -179,14 +194,21 @@ public partial class MainWindow : FluentWindow
         }
         catch (Exception)
         {
-            // Never let a launch failure take the app down; the status refresh in
-            // the finally block reports whatever actually ended up running.
+            // Never let a launch failure take the app down; the status refresh
+            // below reports whatever actually ended up running.
         }
         finally
         {
-            RefreshStatuses();
-            LaunchButton.Content = "Launch Selected";
-            LaunchButton.IsEnabled = true;
+            // Only the newest batch owns the button. A superseded one finishing
+            // later must not re-enable it while its replacement is still launching.
+            if (ReferenceEquals(_launchCts, cts))
+            {
+                _launchCts = null;
+                RefreshStatuses();
+                LaunchButton.Content = "Launch Selected";
+                LaunchButton.IsEnabled = true;
+            }
+            cts.Dispose();
         }
     }
 

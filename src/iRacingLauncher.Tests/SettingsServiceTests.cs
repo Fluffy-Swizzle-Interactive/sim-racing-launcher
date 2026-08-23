@@ -379,6 +379,62 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void Save_LeavesNoTempFileBehindInTheConfigDirectory()
+    {
+        // Save swaps a temp file into place so an interrupted write can't truncate
+        // the real config — but a completed save must clean up after itself rather
+        // than littering the config directory.
+        var path = TempConfigPath();
+        try
+        {
+            var service = new SettingsService(path);
+            service.Save(SettingsService.CreateDefaultConfig());
+
+            var dir = Path.GetDirectoryName(path)!;
+            var leftovers = Directory.GetFiles(dir, Path.GetFileName(path) + "*")
+                .Where(f => !string.Equals(f, path, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            Assert.Empty(leftovers);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Save_FullyReplacesALargerExistingConfig()
+    {
+        // The swap must replace the old file outright, not overlay it — otherwise a
+        // shorter config could leave trailing bytes of the previous, longer one and
+        // produce unparseable JSON.
+        var path = TempConfigPath();
+        try
+        {
+            var service = new SettingsService(path);
+            var large = SettingsService.CreateDefaultConfig();
+            service.Save(large);
+            var largeLength = new FileInfo(path).Length;
+
+            var small = SettingsService.CreateDefaultConfig();
+            small.Apps.Clear();
+            small.Profiles.RemoveRange(1, small.Profiles.Count - 1);
+            small.Profiles[0].AppRefs.Clear();
+            service.Save(small);
+
+            Assert.True(new FileInfo(path).Length < largeLength);
+            var reloaded = service.Load();
+            Assert.Single(reloaded.Profiles);
+            Assert.Empty(reloaded.Profiles[0].AppRefs);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Save_DoesNotWriteTheDerivedActiveProfileProperty()
     {
         // ActiveProfile is computed from Profiles/ActiveProfileName — it must not

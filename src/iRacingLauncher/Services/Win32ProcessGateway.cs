@@ -29,6 +29,14 @@ public class Win32ProcessGateway : IProcessGateway
             Process.Start(new ProcessStartInfo(exePath)
             {
                 Arguments = arguments,
+                // Start the app in its own folder rather than inheriting the
+                // launcher's current directory. Sim tools commonly resolve config
+                // and data files relative to the working directory, so inheriting
+                // ours can break them outright; it also means anything they load by
+                // bare filename would search a directory they never chose — which,
+                // if the launcher happened to be started from somewhere writable
+                // like Downloads, is a side-loading hazard for the app we launch.
+                WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
                 WindowStyle = ProcessWindowStyle.Minimized,
                 UseShellExecute = true,
             });

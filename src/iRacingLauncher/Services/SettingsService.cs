@@ -239,6 +239,20 @@ public class SettingsService
         }
     }
 
+    /// <summary>
+    /// Serializes the config and swaps it into place atomically.
+    /// </summary>
+    /// <remarks>
+    /// Writing straight to <see cref="_configPath"/> would truncate it first, so an
+    /// interrupted write — a logoff/shutdown force-kill, a power loss — could leave
+    /// a half-written file behind. <see cref="Load"/> treats that as corrupt and
+    /// resets to defaults, then persists those defaults over it, destroying the
+    /// user's real configuration for good. Writing to a sibling temp file and moving
+    /// it over the target means the config is only ever replaced by a complete file:
+    /// the move is atomic within a volume, so a crash leaves either the old config
+    /// or the new one intact, never a truncated hybrid. The temp name carries the
+    /// process id so two running instances can't clobber each other's staging file.
+    /// </remarks>
     public void Save(LauncherConfig config)
     {
         var json = JsonSerializer.Serialize(config, SerializerOptions);
@@ -247,7 +261,20 @@ public class SettingsService
         {
             Directory.CreateDirectory(dir);
         }
-        File.WriteAllText(_configPath, json);
+
+        var tempPath = $"{_configPath}.{Environment.ProcessId}.tmp";
+        File.WriteAllText(tempPath, json);
+        try
+        {
+            File.Move(tempPath, _configPath, overwrite: true);
+        }
+        catch
+        {
+            // Don't leave the staging file behind if the swap itself failed; the
+            // existing config is still intact, which is the point of staging.
+            try { File.Delete(tempPath); } catch (IOException) { }
+            throw;
+        }
     }
 
     public static LauncherConfig CreateDefaultConfig()
