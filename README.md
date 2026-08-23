@@ -25,11 +25,16 @@ Extended off a simple launcher SwizzleShizzle made.
 - **Live status checklist** — every app in the active profile shows whether
   it's currently running, not running, or missing at its configured path,
   refreshed automatically.
-- **Pick what to launch** — check only the apps you want, then hit
-  **Launch Selected**. Apps whose path isn't valid gray out automatically so
-  they can't be selected; an app that's already running stays selectable but
-  its per-row Start is disabled until it stops. If anything fails to start,
-  a banner tells you what and why.
+- **Pick what to launch** — the main window only lists apps currently
+  selected for the active profile. Uncheck one to drop it from the launch
+  set for **Launch Selected**; unchecking removes its row immediately
+  rather than leaving it there unchecked, since it stays selected for every
+  other profile that uses it — bring it back onto this list any time via
+  that profile's **Selected Apps** in Settings. An app whose path isn't
+  valid, or one that's already running, has its checkbox (and per-row
+  Start) grayed out, so you can't uncheck it from here directly — stop a
+  running app first if you want to hide it this way. If anything fails to
+  start, a banner tells you what and why.
 - **Stop All** — stops every currently-running app in the active profile in
   one click, regardless of what's checked.
 - **Per-app Start/Stop** — launch or close any single app individually.
