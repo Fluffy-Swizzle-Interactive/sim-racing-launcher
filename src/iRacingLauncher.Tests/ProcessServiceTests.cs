@@ -41,7 +41,7 @@ public class ProcessServiceTests
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
         var delays = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delays.Add(seconds); return Task.CompletedTask; });
 
         var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
@@ -56,7 +56,7 @@ public class ProcessServiceTests
         apps[0].Arguments = "--vr";
         apps[1].Arguments = "";
         var gateway = new FakeProcessGateway();
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
 
         await service.LaunchAppsAsync(apps, delaySeconds: 2);
 
@@ -68,7 +68,7 @@ public class ProcessServiceTests
     {
         var gateway = new FakeProcessGateway();
         var delayCalls = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delayCalls.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delayCalls.Add(seconds); return Task.CompletedTask; });
 
         await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 3);
 
@@ -82,7 +82,7 @@ public class ProcessServiceTests
         var gateway = new FakeProcessGateway();
         gateway.FailingPaths.Add(@"C:\b.exe");
         var delays = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delays.Add(seconds); return Task.CompletedTask; });
 
         var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
@@ -101,7 +101,7 @@ public class ProcessServiceTests
     {
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
 
         var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
@@ -131,13 +131,50 @@ public class ProcessServiceTests
         // M..." UI during a staggered batch.
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
         var reported = new List<(int Current, int Total)>();
         var progress = new SyncProgress<(int, int)>(p => reported.Add(p));
 
         await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2, progress);
 
         Assert.Equal(new[] { (1, 3), (2, 3), (3, 3) }, reported);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_StopsLaunchingMoreAppsOnceCancelled()
+    {
+        // Simulates "Stop All" cancelling mid-batch: the stagger delay's caller
+        // (Stop All) requests cancellation while the delay after app A is pending.
+        var gateway = new FakeProcessGateway();
+        var cts = new CancellationTokenSource();
+        var service = new ProcessService(gateway, (_, _) =>
+        {
+            cts.Cancel();
+            return Task.CompletedTask;
+        });
+
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2, cancellationToken: cts.Token);
+
+        // Only A got a Start() call — B and C were never reached once cancellation
+        // was observed at the top of the next loop iteration.
+        Assert.Equal(new[] { @"C:\a.exe" }, gateway.StartedPaths);
+        Assert.Equal(new[] { "A" }, result.Launched);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_CancellingDuringTheRealDelayReturnsWithoutThrowing()
+    {
+        // Exercises the real (non-test-double) Task.Delay-based default, confirming
+        // the OperationCanceledException it throws is caught rather than escaping
+        // LaunchAppsAsync as an unhandled exception.
+        var gateway = new FakeProcessGateway();
+        var service = new ProcessService(gateway);
+        var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 5, cancellationToken: cts.Token);
+
+        Assert.Equal(new[] { "A" }, result.Launched);
     }
 
     [Fact]

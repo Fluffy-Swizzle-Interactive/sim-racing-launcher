@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
 using iRacingLauncher.ViewModels;
@@ -24,6 +25,7 @@ public partial class MainWindow : FluentWindow
     private readonly ObservableCollection<AppRowViewModel> _rows = new();
     private readonly DispatcherTimer _statusTimer;
     private bool _isExiting;
+    private System.Threading.CancellationTokenSource? _launchCts;
 
     public MainWindow(
         LauncherConfig config,
@@ -145,8 +147,22 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    private async void LaunchButton_Click(object sender, RoutedEventArgs e)
+    private async void LaunchButton_Click(object sender, RoutedEventArgs e) => await LaunchSelectedAsync();
+
+    /// <summary>
+    /// Launches every selected app in the active profile. Shared by the Launch
+    /// Selected button and the tray menu's own "Launch Selected" item, so both go
+    /// through the same cancellation-aware path — see <see cref="_launchCts"/>.
+    /// </summary>
+    public async Task LaunchSelectedAsync()
     {
+        // A prior in-flight launch (e.g. from the tray menu) must not keep running
+        // alongside this one, and Stop All must be able to reach whichever is current.
+        _launchCts?.Cancel();
+        _launchCts?.Dispose();
+        var cts = new System.Threading.CancellationTokenSource();
+        _launchCts = cts;
+
         LaunchButton.IsEnabled = false;
         LaunchInfoBar.IsOpen = false;
         var progress = new Progress<(int Current, int Total)>(p =>
@@ -154,7 +170,7 @@ public partial class MainWindow : FluentWindow
         try
         {
             var selectedApps = _config.ResolveApps(_config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
-            var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress);
+            var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress, cts.Token);
             if (result.Failed.Count > 0)
             {
                 LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
@@ -176,6 +192,10 @@ public partial class MainWindow : FluentWindow
 
     private void StopAllButton_Click(object sender, RoutedEventArgs e)
     {
+        // Cancel any in-progress launch batch first — otherwise it keeps staggering
+        // through its remaining apps regardless of Stop All, and can even re-launch
+        // one this just killed once the loop reaches it.
+        _launchCts?.Cancel();
         _processService.StopAll(_config.ResolveApps(_config.ActiveProfile.AppRefs));
         RefreshStatuses();
     }

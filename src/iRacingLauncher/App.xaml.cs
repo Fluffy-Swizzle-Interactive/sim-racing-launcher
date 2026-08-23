@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Windows;
 using iRacingLauncher.Services;
 using Wpf.Ui;
@@ -48,15 +47,12 @@ public partial class App : Application
         var launchItem = new System.Windows.Controls.MenuItem { Header = "Launch Selected" };
         launchItem.Click += async (_, _) =>
         {
-            try
+            // Goes through the main window so it shares the same cancellation-aware
+            // launch path Stop All interrupts — LaunchSelectedAsync already swallows
+            // launch failures itself, so there's nothing left for the tray to catch.
+            if (_mainWindow is not null)
             {
-                var selectedApps = config.ResolveApps(config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
-                await processService.LaunchAppsAsync(selectedApps, config.LaunchDelaySeconds);
-            }
-            catch (Exception)
-            {
-                // There is no window to report to from the tray menu; a failed launch
-                // must not bring the app down.
+                await _mainWindow.LaunchSelectedAsync();
             }
         };
         var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };

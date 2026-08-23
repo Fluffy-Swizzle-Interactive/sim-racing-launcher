@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using iRacingLauncher.Models;
 
@@ -9,12 +10,12 @@ namespace iRacingLauncher.Services;
 public class ProcessService
 {
     private readonly IProcessGateway _gateway;
-    private readonly Func<int, Task> _delay;
+    private readonly Func<int, CancellationToken, Task> _delay;
 
-    public ProcessService(IProcessGateway gateway, Func<int, Task>? delay = null)
+    public ProcessService(IProcessGateway gateway, Func<int, CancellationToken, Task>? delay = null)
     {
         _gateway = gateway;
-        _delay = delay ?? (seconds => Task.Delay(TimeSpan.FromSeconds(seconds)));
+        _delay = delay ?? ((seconds, token) => Task.Delay(TimeSpan.FromSeconds(seconds), token));
     }
 
     public bool IsRunning(AppDefinition app) => _gateway.IsRunning(app.ProcessName);
@@ -59,16 +60,27 @@ public class ProcessService
     /// reached — including ones skipped as already-running — so a caller can show
     /// "Launching N of M..." for the whole batch, not just successful starts.
     /// </param>
+    /// <param name="cancellationToken">
+    /// Checked before each app and during the stagger delay, so a caller (e.g. Stop
+    /// All) can interrupt an in-progress batch instead of it continuing to launch
+    /// apps regardless — cancelling never throws out of this method; the result just
+    /// reflects whatever was launched before cancellation was observed.
+    /// </param>
     public async Task<LaunchResult> LaunchAppsAsync(
         IEnumerable<AppDefinition> apps,
         int delaySeconds,
-        IProgress<(int Current, int Total)>? progress = null)
+        IProgress<(int Current, int Total)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var launched = new List<string>();
         var failed = new List<string>();
         var batch = apps.ToList();
         for (var i = 0; i < batch.Count; i++)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
             var app = batch[i];
             progress?.Report((i + 1, batch.Count));
 
@@ -84,7 +96,14 @@ public class ProcessService
                 continue;
             }
             launched.Add(app.Name);
-            await _delay(delaySeconds);
+            try
+            {
+                await _delay(delaySeconds, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
         return new LaunchResult(launched, failed);
     }
