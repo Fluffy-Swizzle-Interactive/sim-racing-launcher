@@ -314,11 +314,15 @@ public partial class SettingsWindow : FluentWindow
         if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
         // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
         if (row.Entry is not { } entry) return;
-        var index = _profileAppRows.IndexOf(row);
+        // Index within AppRefs itself, not within _profileAppRows: that list also
+        // holds not-yet-referenced rows interleaved with referenced ones, so its
+        // indices don't correspond 1:1 to AppRefs positions once both kinds are
+        // present — using it here silently mis-ordered (or no-opped) a save.
+        var index = _currentEditingProfile.AppRefs.IndexOf(entry);
         if (index <= 0) return;
-        _profileAppRows.Move(index, index - 1);
-        _currentEditingProfile.AppRefs.Remove(entry);
+        _currentEditingProfile.AppRefs.RemoveAt(index);
         _currentEditingProfile.AppRefs.Insert(index - 1, entry);
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void MoveProfileAppDownButton_Click(object sender, RoutedEventArgs e)
@@ -326,11 +330,11 @@ public partial class SettingsWindow : FluentWindow
         if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
         // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
         if (row.Entry is not { } entry) return;
-        var index = _profileAppRows.IndexOf(row);
-        if (index < 0 || index >= _profileAppRows.Count - 1) return;
-        _profileAppRows.Move(index, index + 1);
-        _currentEditingProfile.AppRefs.Remove(entry);
+        var index = _currentEditingProfile.AppRefs.IndexOf(entry);
+        if (index < 0 || index >= _currentEditingProfile.AppRefs.Count - 1) return;
+        _currentEditingProfile.AppRefs.RemoveAt(index);
         _currentEditingProfile.AppRefs.Insert(index + 1, entry);
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
