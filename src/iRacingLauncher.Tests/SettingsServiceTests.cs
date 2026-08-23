@@ -421,6 +421,30 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void Load_WhenAppsIsNull_FallsBackToDefaultsInsteadOfThrowing()
+    {
+        var path = TempConfigPath();
+        try
+        {
+            // Current-format shape (has both "apps" and "profiles", so it deserializes
+            // directly with no migration) but "apps" is JSON null rather than an array —
+            // config.Apps ends up null, which must be caught here rather than crashing
+            // later the first time a caller resolves a profile's apps against it.
+            File.WriteAllText(path, """{ "apps": null, "profiles": [ { "name": "iRacing", "appRefs": [] } ] }""");
+            var service = new SettingsService(path);
+
+            var config = service.Load();
+
+            Assert.NotNull(config.Apps);
+            Assert.Equal(7, config.Apps.Count);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Load_WhenEmbeddedAppHasNullProcessName_MigratesWithoutThrowing()
     {
         // The null-guard normalizes a null ProcessName to "" before it ever reaches

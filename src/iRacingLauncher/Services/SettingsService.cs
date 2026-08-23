@@ -75,7 +75,7 @@ public class SettingsService
                 config = MigrateEmbeddedPerProfileAppsFormat(json);
             }
 
-            if (config is null || config.Profiles is null || config.Profiles.Count == 0)
+            if (config is null || config.Apps is null || config.Profiles is null || config.Profiles.Count == 0)
             {
                 return ResetToDefaults();
             }

@@ -24,7 +24,13 @@ public class LauncherConfig
     public Profile ActiveProfile =>
         Profiles.FirstOrDefault(p => p.Name == ActiveProfileName) ?? Profiles[0];
 
-    /// <summary>Joins a profile's AppRefs against the registry, in the refs' order.</summary>
+    /// <summary>
+    /// Joins a profile's AppRefs against the registry, in the refs' order. Skips a ref
+    /// whose AppId no longer matches anything in the registry rather than throwing —
+    /// cascading delete in Settings normally prevents this, but a hand-edited config
+    /// could still carry a stale AppId, and this join backs the Launch/Stop All
+    /// buttons and the tray menu, none of which should crash over one bad row.
+    /// </summary>
     public IEnumerable<AppDefinition> ResolveApps(IEnumerable<ProfileAppEntry> refs) =>
-        refs.Select(r => Apps.First(a => a.Id == r.AppId));
+        refs.Select(r => Apps.FirstOrDefault(a => a.Id == r.AppId)).OfType<AppDefinition>();
 }
