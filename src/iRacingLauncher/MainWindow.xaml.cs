@@ -68,17 +68,37 @@ public partial class MainWindow : FluentWindow
 
     private void LoadRowsFromActiveProfile()
     {
+        foreach (var existingRow in _rows)
+        {
+            existingRow.PropertyChanged -= AppRow_PropertyChanged;
+        }
         _rows.Clear();
-        foreach (var entry in _config.ActiveProfile.AppRefs)
+        foreach (var entry in _config.ActiveProfile.AppRefs.Where(r => r.Selected))
         {
             // Cascading delete in Settings keeps AppRefs in sync with the registry,
             // but a hand-edited config could still carry a stale AppId — skip that
             // row rather than crashing the whole main window.
             var definition = _config.Apps.FirstOrDefault(a => a.Id == entry.AppId);
             if (definition is null) continue;
-            _rows.Add(new AppRowViewModel(definition, entry) { Icon = TryLoadIcon(definition.Path) });
+            var row = new AppRowViewModel(definition, entry) { Icon = TryLoadIcon(definition.Path) };
+            row.PropertyChanged += AppRow_PropertyChanged;
+            _rows.Add(row);
         }
         AppList.ItemsSource = _rows;
+    }
+
+    /// <summary>
+    /// Only Selected apps are shown at all, so unchecking one here must remove its
+    /// row immediately rather than leave an unchecked row behind — the app stays in
+    /// the profile's AppRefs with Selected=false; Settings' Selected Apps checklist
+    /// is the way back onto this list.
+    /// </summary>
+    private void AppRow_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AppRowViewModel.Selected)) return;
+        if (sender is not AppRowViewModel row || row.Selected) return;
+        row.PropertyChanged -= AppRow_PropertyChanged;
+        _rows.Remove(row);
     }
 
     private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
