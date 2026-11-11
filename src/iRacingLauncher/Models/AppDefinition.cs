@@ -17,4 +17,20 @@ public class AppDefinition
         get => _arguments;
         set => _arguments = value ?? string.Empty;
     }
+
+    private string _steamAppId = string.Empty;
+
+    /// <summary>
+    /// Steam App ID (e.g. "2399420"). When set, the app launches through Steam
+    /// instead of by <see cref="Path"/>, and <see cref="Arguments"/> is not used.
+    /// Never null, for the same reason as <see cref="Arguments"/>.
+    /// </summary>
+    public string SteamAppId
+    {
+        get => _steamAppId;
+        set => _steamAppId = value ?? string.Empty;
+    }
+
+    /// <summary>Launch through Steam's VR mode. Only applies when <see cref="SteamAppId"/> is set.</summary>
+    public bool LaunchInVr { get; set; }
 }
