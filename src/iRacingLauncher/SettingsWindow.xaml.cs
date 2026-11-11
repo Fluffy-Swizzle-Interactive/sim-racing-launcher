@@ -271,7 +271,9 @@ public partial class SettingsWindow : FluentWindow
         {
             _appEditRows.Add(new AppEditRowViewModel(app));
         }
-        AppEditList.ItemsSource = _appEditRows;
+        AppList.ItemsSource = _appEditRows;
+        AppList.SelectedIndex = _appEditRows.Count > 0 ? 0 : -1;
+        UpdateAppDetailsVisibility();
         ProfileAppList.ItemsSource = _profileAppRows;
 
         _workingActiveProfile = _workingProfiles.FirstOrDefault(p => p.Name == _config.ActiveProfileName) ?? _workingProfiles[0];
@@ -333,6 +335,17 @@ public partial class SettingsWindow : FluentWindow
         if (GameList.SelectedItem is not ProfileEditRowViewModel row) return;
         _currentEditingProfile = row.Model;
         LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    private void AppList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
+        UpdateAppDetailsVisibility();
+
+    /// <summary>The details pane only makes sense with an app picked; otherwise say how to add one.</summary>
+    private void UpdateAppDetailsVisibility()
+    {
+        var hasApp = AppList.SelectedItem is not null;
+        AppDetails.Visibility = hasApp ? Visibility.Visible : Visibility.Collapsed;
+        NoAppsText.Visibility = hasApp ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void SettingsTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -443,7 +456,10 @@ public partial class SettingsWindow : FluentWindow
             Arguments = string.Empty, SteamAppId = string.Empty, LaunchInVr = false,
         };
         _workingApps.Add(app);
-        _appEditRows.Add(new AppEditRowViewModel(app));
+        var row = new AppEditRowViewModel(app);
+        _appEditRows.Add(row);
+        AppList.SelectedItem = row;
+        AppList.ScrollIntoView(row);
 
         // A newly-added app starts selected in every existing profile.
         foreach (var profile in _workingProfiles)
@@ -456,8 +472,10 @@ public partial class SettingsWindow : FluentWindow
     private void RemoveAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
+        var index = _appEditRows.IndexOf(row);
         _workingApps.Remove(row.Model);
         _appEditRows.Remove(row);
+        AppList.SelectedIndex = ListSelection.AfterRemoval(index, _appEditRows.Count);
 
         // Deleting an app from the registry cascades to every profile referencing it.
         foreach (var profile in _workingProfiles)
