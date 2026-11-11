@@ -281,8 +281,8 @@ public partial class SettingsWindow : FluentWindow
         // where text set before the control's first layout pass never paints (root-caused
         // via its actual XAML template/TextBox.cs source — the placeholder-visibility
         // sync in OnTextChanged, and the underlying text rendering itself, both depend on
-        // the TextEditor already existing, which it doesn't yet here since "Launch
-        // Behavior" starts collapsed). ui:TextBox has none of that; parsed manually below.
+        // the TextEditor already existing, which it doesn't yet here since the General
+        // tab isn't shown until picked). ui:TextBox has none of that; parsed manually below.
         DelayBox.Text = _config.LaunchDelaySeconds.ToString();
         StartupToggle.IsChecked = _config.LaunchAtWindowsStartup;
         CloseToTrayToggle.IsChecked = _config.CloseToTray;
