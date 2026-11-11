@@ -114,6 +114,23 @@ dotnet publish src/iRacingLauncher/iRacingLauncher.csproj -c Release
 The published executable will be under
 `src/iRacingLauncher/bin/Release/net10.0-windows/win-x64/publish/`.
 
+## Making a release
+
+1. Add a `## vX.Y.Z` section to [CHANGELOG.md](CHANGELOG.md) describing the
+   release, and merge everything to `master`.
+2. Tag the commit and push the tag:
+
+   ```bash
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+
+The `build-and-sign` workflow then runs the tests, builds `SimRacingLauncher.exe`
+stamped with that version, and creates the GitHub Release with the changelog
+section as its notes and the exe attached (the signed one once code signing is
+set up). The build fails, and no release is made, if the changelog has no
+section for that version.
+
 ## Tech stack
 
 .NET 10, WPF, and [WPF-UI](https://github.com/lepoco/wpfui) for the Fluent
