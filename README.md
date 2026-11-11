@@ -18,6 +18,9 @@ Extended off a simple launcher SwizzleShizzle made.
   enable it for whichever profiles need it in that profile's **Selected
   Apps** checklist. Editing an app's path in one place updates it
   everywhere it's used.
+- **Steam games and VR**: give an app its Steam App ID and it launches
+  through Steam. Tick **Launch in VR** to start it in Steam's VR mode.
+  Pick a game's exe from a Steam library and the App ID fills itself in.
 - **Profiles per sim** — each sim gets its own named profile with its own
   selected-apps checklist and launch order. Switch between them from a
   dropdown on the main window; nothing else needs reconfiguring. Ships with
@@ -83,6 +86,20 @@ Extended off a simple launcher SwizzleShizzle made.
    it. Want another companion tool? **Add App** and fill in a name, process
    name (used to detect if it's already running — no `.exe`), path, and
    optionally launch arguments.
+
+   **Steam games (and VR):** if the path you pick is inside a Steam
+   library, the **Steam App ID** box fills in by itself and the game will
+   launch through Steam. (It's left alone if the app already has launch
+   arguments; press **Find ID** to fill it anyway.) You can also type the
+   ID yourself: it's the number in the game's Steam store URL, like
+   `2399420` for Le Mans Ultimate. Then:
+   - Tick **Launch in VR** to start the game in Steam's VR mode.
+   - Keep the **process name** set to the game's own exe name, not Steam,
+     so the launcher can tell when the game is already running.
+   - Extra launch options for a Steam game go in Steam itself (right-click
+     the game, Properties, Launch Options). The launcher's arguments box
+     is turned off for Steam games.
+   - Clear the App ID to go back to launching the exe directly.
 5. **Choose which apps this profile uses**, in **Selected Apps**: check the
    ones you want, uncheck the ones you don't, and use Move Up/Down to set
    their launch order. Unchecking an app here only affects this profile —
