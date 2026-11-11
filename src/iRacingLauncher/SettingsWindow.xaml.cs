@@ -547,11 +547,33 @@ public partial class SettingsWindow : FluentWindow
         ApplicationThemeManager.Apply(theme);
     }
 
+    /// <summary>
+    /// Brings what a blocked Save is complaining about into view: switches to its tab
+    /// and selects that game or app, so the message never points at something hidden.
+    /// </summary>
+    private void ShowProblem(SettingsProblem problem)
+    {
+        if (problem.Game is not null && RowFor(problem.Game) is { } gameRow)
+        {
+            SettingsTabs.SelectedItem = GamesTab;
+            GameList.SelectedItem = gameRow;
+            GameList.ScrollIntoView(gameRow);
+        }
+        else if (problem.App is not null
+                 && _appEditRows.FirstOrDefault(r => ReferenceEquals(r.Model, problem.App)) is { } appRow)
+        {
+            SettingsTabs.SelectedItem = AppsTab;
+            AppList.SelectedItem = appRow;
+            AppList.ScrollIntoView(appRow);
+        }
+    }
+
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         var problem = SettingsValidation.Validate(_workingProfiles, _workingApps);
         if (problem is not null)
         {
+            ShowProblem(problem);
             ValidationInfoBar.Message = problem.Message;
             ValidationInfoBar.IsOpen = true;
             return;
