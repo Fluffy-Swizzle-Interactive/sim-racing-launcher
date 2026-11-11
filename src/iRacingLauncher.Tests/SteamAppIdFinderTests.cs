@@ -230,4 +230,32 @@ public class SteamAppIdFinderTests : IDisposable
 
         Assert.Equal("244210", row.SteamAppId);
     }
+
+    [Fact]
+    public void Settings_ExistingAppInSteamLibrary_FillsWhenSettingsOpens()
+    {
+        // An app set up before Steam support (like iRacing pointing into a Steam
+        // library) gets its ID filled in when Settings opens; it's saved on Save.
+        var exe = AddGame("iRacing", Path.Combine("ui", "iRacingUI.exe"));
+        AddManifest("266410", Manifest("266410", "iRacing"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition { Path = exe });
+
+        row.AutoFillSteamAppId();
+
+        Assert.Equal("266410", row.SteamAppId);
+        Assert.StartsWith("Steam game detected", row.FindStatus);
+    }
+
+    [Fact]
+    public void Settings_ExistingAppWithArguments_IsLeftAloneWhenSettingsOpens()
+    {
+        var exe = AddGame("iRacing", Path.Combine("ui", "iRacingUI.exe"));
+        AddManifest("266410", Manifest("266410", "iRacing"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition { Path = exe, Arguments = "-x" });
+
+        row.AutoFillSteamAppId();
+
+        Assert.Equal("", row.SteamAppId);
+        Assert.Equal("", row.FindStatus);
+    }
 }

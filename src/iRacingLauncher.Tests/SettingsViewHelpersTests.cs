@@ -30,6 +30,24 @@ public class SettingsViewHelpersTests
     }
 
     [Fact]
+    public void IsSearching_IsPerAppAndRaisesChange()
+    {
+        // Auto-Find is one shared button in the details pane, so "a search is running"
+        // has to live on the app, not the button: searching app A must not grey out
+        // Auto-Find for app B.
+        var a = new AppEditRowViewModel(new AppDefinition());
+        var b = new AppEditRowViewModel(new AppDefinition());
+        var raised = new List<string?>();
+        a.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        a.IsSearching = true;
+
+        Assert.True(a.IsSearching);
+        Assert.False(b.IsSearching);
+        Assert.Contains(nameof(AppEditRowViewModel.IsSearching), raised);
+    }
+
+    [Fact]
     public void ShowVrTag_RaisesChangeWhenIdOrVrChanges()
     {
         var row = new AppEditRowViewModel(new AppDefinition());

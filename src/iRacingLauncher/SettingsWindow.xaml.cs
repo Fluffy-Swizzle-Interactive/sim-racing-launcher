@@ -39,14 +39,24 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
         {
             Model.Path = value;
             OnPropertyChanged();
-            // Only reacts to a path the user just set (Browse, Auto-Find, typing);
-            // the constructor goes through Model, so opening Settings changes nothing.
-            if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments, value)
-                && SteamAppIdFinder.FindAppId(value) is { } id)
-            {
-                SteamAppId = id;
-                FindStatus = $"Steam game detected (App ID {id}). It will launch through Steam.";
-            }
+            AutoFillSteamAppId();
+        }
+    }
+
+    /// <summary>
+    /// Fills the Steam App ID when the path is inside a Steam library, unless the
+    /// rules say not to (ID already set, launch arguments, Content Manager). Runs
+    /// whenever the path changes, and once per app when Settings opens so apps set
+    /// up before Steam support (e.g. iRacing in a Steam library) pick it up. Like
+    /// any edit in Settings, it only sticks if the user presses Save.
+    /// </summary>
+    public void AutoFillSteamAppId()
+    {
+        if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments, Path)
+            && SteamAppIdFinder.FindAppId(Path) is { } id)
+        {
+            SteamAppId = id;
+            FindStatus = $"Steam game detected (App ID {id}). It will launch through Steam.";
         }
     }
 
@@ -118,6 +128,18 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
 
     /// <summary>The VR tag in the Apps list: only when the app really launches in VR.</summary>
     public bool ShowVrTag => UsesSteam && LaunchInVr;
+
+    private bool _isSearching;
+
+    /// <summary>
+    /// An Auto-Find search is running for this app. Lives on the app rather than the
+    /// button because the details pane's one Auto-Find button is shared by every app.
+    /// </summary>
+    public bool IsSearching
+    {
+        get => _isSearching;
+        set { _isSearching = value; OnPropertyChanged(); }
+    }
 
     private string _findStatus = string.Empty;
     public string FindStatus
@@ -269,7 +291,10 @@ public partial class SettingsWindow : FluentWindow
 
         foreach (var app in _workingApps)
         {
-            _appEditRows.Add(new AppEditRowViewModel(app));
+            var row = new AppEditRowViewModel(app);
+            // Apps set up before Steam support pick up their ID now (kept only on Save).
+            row.AutoFillSteamAppId();
+            _appEditRows.Add(row);
         }
         AppList.ItemsSource = _appEditRows;
         AppList.SelectedIndex = _appEditRows.Count > 0 ? 0 : -1;
@@ -330,15 +355,41 @@ public partial class SettingsWindow : FluentWindow
 
     private void GameList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        // Null while a removed row's neighbour is being picked; the follow-up
-        // selection does the work.
-        if (GameList.SelectedItem is not ProfileEditRowViewModel row) return;
+        // Null while a removed row's neighbour is being picked (the follow-up
+        // selection does the work), or after a Ctrl+click un-selects the row.
+        if (GameList.SelectedItem is not ProfileEditRowViewModel row)
+        {
+            KeepSelection(GameList, e);
+            return;
+        }
         _currentEditingProfile = row.Model;
         LoadProfileAppRowsFromCurrentProfile();
     }
 
-    private void AppList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) =>
+    private void AppList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        KeepSelection(AppList, e);
         UpdateAppDetailsVisibility();
+    }
+
+    /// <summary>
+    /// A WPF ListBox un-selects its item on Ctrl+click, which would leave the details
+    /// pane blank (or claiming there are no apps) while the list isn't empty. Put the
+    /// previous item back. Deferred so a delete handler that is about to pick a
+    /// neighbour gets to do that first; only re-selects if nothing else did.
+    /// </summary>
+    private void KeepSelection(System.Windows.Controls.ListBox list, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (list.SelectedItem is not null || list.Items.Count == 0 || e.RemovedItems.Count == 0) return;
+        var previous = e.RemovedItems[0];
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (list.SelectedItem is null && list.Items.Contains(previous))
+            {
+                list.SelectedItem = previous;
+            }
+        });
+    }
 
     /// <summary>The details pane only makes sense with an app picked; otherwise say how to add one.</summary>
     private void UpdateAppDetailsVisibility()
@@ -509,7 +560,7 @@ public partial class SettingsWindow : FluentWindow
         if (button.Tag is not AppEditRowViewModel row) return;
 
         // A full Program Files walk takes tens of seconds — never on the UI thread.
-        button.IsEnabled = false;
+        row.IsSearching = true;
         row.FindStatus = "Searching...";
         try
         {
@@ -537,14 +588,14 @@ public partial class SettingsWindow : FluentWindow
         }
         finally
         {
-            button.IsEnabled = true;
+            row.IsSearching = false;
         }
     }
 
     private void ThemeToggle_Changed(object sender, RoutedEventArgs e)
     {
         var theme = ThemeToggle.IsChecked == true ? ApplicationTheme.Dark : ApplicationTheme.Light;
-        ApplicationThemeManager.Apply(theme);
+        AppTheme.Apply(theme);
     }
 
     /// <summary>
@@ -631,7 +682,7 @@ public partial class SettingsWindow : FluentWindow
         // persisted _config.Theme disagree until the app restarts.
         if (DialogResult != true)
         {
-            ApplicationThemeManager.Apply(
+            AppTheme.Apply(
                 _originalTheme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light);
         }
         ApplicationThemeManager.Changed -= OnAppThemeChanged;

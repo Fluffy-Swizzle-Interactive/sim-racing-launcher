@@ -9,6 +9,65 @@
                   WindowStartupLocation="CenterOwner">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Each game/app is its own cell: a rounded tile with a gap below it,
+             and a blue bar plus blue tint when selected. -->
+        <Style x:Key="CellItem" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid>
+                            <Border x:Name="Tile" CornerRadius="6" MinHeight="40"
+                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" />
+                            <Border x:Name="Tint" CornerRadius="6" Opacity="0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                            <Border x:Name="Bar" Width="3" CornerRadius="2" Margin="0,7" HorizontalAlignment="Left"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Collapsed" />
+                            <ContentPresenter Margin="14,6,8,6" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Tile" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Tint" Property="Opacity" Value="0.18" />
+                                <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tabs: dimmed text, and a blue underline under the selected one. -->
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Grid Margin="0,0,4,0" Background="Transparent" Cursor="Hand">
+                            <ContentPresenter x:Name="Label" ContentSource="Header" Margin="14,8" Opacity="0.65"
+                                              TextElement.FontSize="14" />
+                            <Border x:Name="Underline" Height="3" CornerRadius="2" VerticalAlignment="Bottom" Margin="10,0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Label" Property="Opacity" Value="1" />
+                                <Setter TargetName="Label" Property="TextElement.FontWeight" Value="SemiBold" />
+                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Label" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </ui:FluentWindow.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -33,10 +92,12 @@
                     </Grid.ColumnDefinitions>
 
                     <DockPanel Grid.Column="0" Margin="0,0,16,0">
-                        <ui:Button DockPanel.Dock="Bottom" Content="Add game" Icon="{ui:SymbolIcon Add20}"
-                                   Margin="0,8,0,0" Click="AddProfileButton_Click" />
-                        <ListBox x:Name="GameList" SelectionChanged="GameList_SelectionChanged"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,6,0">
+                        <ListBox x:Name="GameList" SelectionChanged="GameList_SelectionChanged" ItemContainerStyle="{StaticResource CellItem}"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>
@@ -58,6 +119,10 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+                        <ui:Button Content="Add game" Icon="{ui:SymbolIcon Add20}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Margin="0,2,0,0" Click="AddProfileButton_Click" />
+                        </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
 
                     <DockPanel Grid.Column="1" DataContext="{Binding SelectedItem, ElementName=GameList}">
@@ -105,10 +170,12 @@
                     </Grid.ColumnDefinitions>
 
                     <DockPanel Grid.Column="0" Margin="0,0,16,0">
-                        <ui:Button DockPanel.Dock="Bottom" Content="Add app" Icon="{ui:SymbolIcon Add20}"
-                                   Margin="0,8,0,0" Click="AddAppButton_Click" />
-                        <ListBox x:Name="AppList" SelectionChanged="AppList_SelectionChanged"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,6,0">
+                        <ListBox x:Name="AppList" SelectionChanged="AppList_SelectionChanged" ItemContainerStyle="{StaticResource CellItem}"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid>
@@ -131,6 +198,10 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+                        <ui:Button Content="Add app" Icon="{ui:SymbolIcon Add20}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Margin="0,2,0,0" Click="AddAppButton_Click" />
+                        </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
 
                     <TextBlock x:Name="NoAppsText" Grid.Column="1" Visibility="Collapsed" Opacity="0.7"
@@ -157,6 +228,7 @@
                                 <ui:Button Grid.Column="1" Content="Browse" Icon="{ui:SymbolIcon FolderOpen20}" Margin="8,0,0,0"
                                            Click="BrowseButton_Click" Tag="{Binding}" />
                                 <ui:Button Grid.Column="2" Content="Auto-Find" Icon="{ui:SymbolIcon Search20}" Margin="8,0,0,0"
+                                           IsEnabled="{Binding IsSearching, Converter={StaticResource InverseBooleanConverter}}"
                                            Click="AutoFindButton_Click" Tag="{Binding}" />
                             </Grid>
 
@@ -254,7 +326,7 @@
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
             <ui:Button Content="Cancel" Margin="0,0,8,0" Click="CancelButton_Click" />
-            <ui:Button Content="Save" Appearance="Primary" Click="SaveButton_Click" />
+            <ui:Button Content="Save" Appearance="Primary" Click="SaveButton_Click" MinWidth="80" />
         </StackPanel>
     </Grid>
 </ui:FluentWindow>
