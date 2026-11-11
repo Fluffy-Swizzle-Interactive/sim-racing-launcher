@@ -3,127 +3,98 @@
   <img src="logos/lockup-light.svg#gh-light-mode-only" alt="Sim Racing Launcher" />
 </p>
 
-A small Windows desktop app for starting your sim racing toolchain —
-whichever sim you run (iRacing, Assetto Corsa Competizione, Assetto Corsa,
-or anything else) plus whatever companion apps go with it (voice coaching,
-paint apps, telemetry overlays, etc.) — without hunting down each one
-manually or accidentally launching something that's already running.
+A small Windows app that starts your whole sim racing setup in one click:
+the sim you're running (iRacing, ACC, Assetto Corsa, Le Mans Ultimate or
+anything else) plus the companion apps that go with it, like voice coaching,
+paint downloaders and telemetry overlays. No hunting for shortcuts, and
+nothing gets launched twice.
 
 Extended off a simple launcher SwizzleShizzle made.
 
+**[Download the latest release](https://github.com/Fluffy-Swizzle-Interactive/sim-racing-launcher/releases/latest)**
+· [What's new](CHANGELOG.md)
+
+<p align="center">
+  <img src="docs/screenshots/main-window.png" alt="Main window" width="420" />
+  <img src="docs/screenshots/settings-games.png" alt="Settings, Games tab" width="560" />
+</p>
+
 ## Features
 
-- **Apps registry, shared across profiles** — configure each companion app
-  (path, process name, launch arguments) once on the **Apps** tab in
-  Settings, then tick it for whichever games need it on the **Games** tab.
-  Editing an app's path in one place updates it everywhere it's used.
-- **Steam games and VR**: give an app its Steam App ID and it launches
-  through Steam. Tick **Launch in VR** to start it in Steam's VR mode.
-  Pick a game's exe from a Steam library and the App ID fills itself in.
-- **Profiles per sim** — each sim gets its own named profile with its own
-  selected-apps checklist and launch order. Switch between them from a
-  dropdown on the main window; nothing else needs reconfiguring. Ships with
-  three ready-made profiles (see [Setup guide](#setup-guide) below).
-- **Live status checklist** — every app in the active profile shows whether
-  it's currently running, not running, or missing at its configured path,
-  refreshed automatically.
-- **Pick what to launch** — the main window only lists apps currently
-  selected for the active profile. Uncheck one to drop it from the launch
-  set for **Launch Selected**; unchecking removes its row immediately
-  rather than leaving it there unchecked, since it stays selected for every
-  other game that uses it. Bring it back onto this list any time by
-  ticking it for that game on the **Games** tab in Settings. An app whose path isn't
-  valid, or one that's already running, has its checkbox (and per-row
-  Start) grayed out, so you can't uncheck it from here directly — stop a
-  running app first if you want to hide it this way. If anything fails to
-  start, a banner tells you what and why.
-- **Stop All** — stops every currently-running app in the active profile in
-  one click, regardless of what's checked.
-- **Per-app Start/Stop** — launch or close any single app individually.
-- **Settings**, split into three tabs:
-  - **Games**: your games (profiles) on the left; add, rename, reorder or
-    delete them. Pick one to see its apps on the right, tick the ones it
-    uses and set their launch order with the up/down arrows. Picking a game
-    here only chooses what you're editing; the main window stays on its
-    current game.
-  - **Apps**: your apps on the left, tagged **Steam** or **VR** when they
-    launch that way. Pick one to edit its name, process name, path, Steam
-    App ID and launch arguments. Deleting an app removes it from every game;
-    to drop it from just one game, untick it on the **Games** tab instead.
-    **Auto-Find** searches common install locations (Program Files,
-    Program Files (x86), LocalAppData, ProgramData, Start Menu shortcuts)
-    for an app's executable, so you don't have to know the exact path.
-  - **General**:
-    - Delay between staggered launches.
-    - Optional "launch at Windows startup".
-    - Optional "close to tray", off by default. When on, closing the main
-      window (the X button) hides it to the tray instead of exiting; use the
-      tray icon's **Exit** to actually quit. When off, closing the window
-      exits the app as normal.
-    - Light/dark theme.
-  - If something stops Settings from saving, it switches to the tab and
-    the game or app with the problem.
-- **System tray** (when "close to tray" is enabled) — the window hides to
-  the tray instead of exiting, with a quick-access menu (Show / Launch
-  Selected / Exit). Tray **Exit** always fully quits, regardless of the
-  setting.
+- **One click for everything.** Pick a game, hit **Launch Selected**, and
+  its apps start one after another with a short delay between them. Apps
+  that are already running are skipped.
+- **Set up each app once.** Crew Chief, Trading Paints, RaceLab and the rest
+  are configured in one place and shared by every game. Each game ticks the
+  apps it uses and sets their order.
+- **A setup per game.** Switch games from the dropdown on the main window
+  (labelled **Profile**). Ships with iRacing, ACC and AC ready to go.
+- **Steam games and VR.** Give a game its Steam App ID and it launches
+  through Steam; tick **Launch in VR** to start it in Steam's VR mode. Pick
+  a game's exe from a Steam library and the App ID fills itself in.
+- **Launch arguments** for any app that needs extra command-line options.
+- **Live status.** Each app shows whether it's running, not running or
+  can't be found, and updates by itself.
+- **Start, stop, or Stop All.** Start or stop any single app, or stop
+  everything at once (this also halts a launch that's still going).
+- **Find apps for you.** **Auto-Find** searches the usual install folders
+  for an app, or **Browse** to pick the `.exe` yourself.
+- **Close to tray** (optional), launch at Windows startup (optional), and a
+  light or dark theme.
 
 ## Setup guide
 
-1. **Launch the app.** On first run it comes with three starter profiles —
-   **iRacing**, **ACC**, and **AC** — and a shared **Apps** registry
-   pre-filled with app *names* but no paths, since no two installs live in
-   the same place.
-2. **Pick a profile** from the dropdown at the top of the main window (or
-   just use whichever is already active).
-3. **Open Settings** (gear icon, bottom-left). It opens on the **Games**
-   tab with your current game picked.
-4. **Point each app at its executable**, on the **Apps** tab. Pick each
-   app in the list, then either:
-   - Click **Auto-Find** to search common install locations automatically, or
-   - Click **Browse** and pick the `.exe` yourself.
-
-   This is configured once per app and applies to every profile that uses
-   it. Want another companion tool? **Add app** and fill in a name, process
-   name (used to detect if it's already running — no `.exe`), path, and
-   optionally launch arguments.
-
-   **Steam games (and VR):** if the path you pick is inside a Steam
-   library, the **Steam App ID** box fills in by itself and the game will
-   launch through Steam. (It's left alone if the app already has launch
-   arguments, or if you picked Content Manager for Assetto Corsa, which
-   keeps launching directly; press **Find ID** to fill it anyway.) You can also type the
-   ID yourself: it's the number in the game's Steam store URL, like
-   `2399420` for Le Mans Ultimate. Then:
-   - Tick **Launch in VR** to start the game in Steam's VR mode.
-   - Keep the **process name** set to the game's own exe name, not Steam,
-     so the launcher can tell when the game is already running.
+1. **Run the launcher.** The first time, it comes with three games
+   (**iRacing**, **ACC** and **AC**) and a list of common apps with their
+   names filled in but no paths, since every PC installs things somewhere
+   different.
+2. **Open Settings** with the gear icon at the bottom left. It has three
+   tabs: **Games**, **Apps** and **General**.
+3. **Point each app at its program, on the Apps tab.** Pick an app in the
+   list, then click **Auto-Find** to search for it or **Browse** to pick the
+   `.exe` yourself. You only do this once per app, and it applies to every
+   game that uses it. To add another tool, click **Add app** and fill in:
+   - **Name**: whatever you want to call it.
+   - **Process name**: the program's file name without `.exe`. The launcher
+     uses it to tell whether the app is already running.
+   - **Path**: where the program is.
+   - **Launch arguments** (optional): extra command-line options.
+4. **Steam games and VR.** If the path you pick is inside a Steam library,
+   the **Steam App ID** fills itself in and the game will launch through
+   Steam. You can also type it yourself: it's the number in the game's Steam
+   store URL, like `2399420` for Le Mans Ultimate.
+   - Tick **Launch in VR** to start the game in Steam's VR mode. Some sims,
+     like iRacing, turn VR on inside the game instead, so leave it unticked
+     for those.
+   - Keep the **process name** set to the game's own program, not Steam.
    - Extra launch options for a Steam game go in Steam itself (right-click
-     the game, Properties, Launch Options). The launcher's arguments box
-     is turned off for Steam games.
-   - Clear the App ID to go back to launching the exe directly.
-5. **Choose which apps each game uses**, on the **Games** tab: pick the
-   game, tick the apps you want, untick the ones you don't, and use the
-   up/down arrows to set their launch order. Unticking an app here only
-   affects that game; it stays set up for any other game that uses it.
-   (Deleting an app on the **Apps** tab is different: that removes it from
-   every game.)
-6. **Don't run a sim listed here, or run one that isn't?** Use **Add game**
-   on the **Games** tab to create a new one, or delete one you don't need.
-   You always need at least one.
-7. **Save.** Back on the main window, check the apps you want and hit
-   **Launch Selected** — or start/stop things individually with the
-   per-row buttons.
-8. Optional: on the **General** tab, set a launch delay between apps, turn on **launch
-   at Windows startup**, or turn on **close to tray** if you'd rather the
-   X button hide the window instead of exiting (use the tray icon's Exit
-   to quit when that's on).
+     the game, then Properties, Launch Options). The launcher's arguments
+     box is turned off for Steam games.
+   - The ID isn't filled in automatically for apps that have launch
+     arguments, or for Assetto Corsa's Content Manager, which should keep
+     launching directly. Press **Find ID** if you want it anyway, or clear
+     the ID to go back to launching the program directly.
+5. **Choose each game's apps, on the Games tab.** Pick a game, tick the apps
+   it uses, and set their launch order with the up and down arrows.
+   Unticking an app here only affects that game. Deleting an app on the
+   **Apps** tab removes it from every game.
+6. **Add or remove games** on the Games tab with **Add game** and the delete
+   button. You always need at least one.
+7. **Save.** Back on the main window, pick a game from the **Profile**
+   dropdown and hit **Launch Selected**, or start and stop apps one at a time
+   with the buttons on each row. Untick an app on the main window to leave
+   it out; it disappears from the list until you tick it again for that game
+   in Settings.
+8. **Optional, on the General tab:** change the delay between launches, start
+   the launcher with Windows, or turn on **Close to tray** so the X button
+   hides the window to the tray instead of quitting (use the tray icon's
+   **Exit** to quit). The tray icon's menu can also **Launch Selected**.
 
 ## Requirements
 
-- Windows 10/11 (x64)
-- Nothing else — the published build is self-contained and includes its
-  own .NET runtime.
+- Windows 10 or 11 (64-bit).
+- Nothing else. The download includes everything it needs, including the
+  .NET runtime.
 
 ## Building from source
 
@@ -162,15 +133,15 @@ the application is approved, finish the setup by:
    builds).
 2. Adding `SIGNPATH_API_TOKEN` as a repo secret and
    `SIGNPATH_ORGANIZATION_ID` as a repo variable
-   (Settings → Secrets and variables → Actions).
+   (Settings, then Secrets and variables, then Actions).
 
-The workflow signs automatically from there — nothing else to change.
+The workflow signs automatically from there; nothing else to change.
 
 ## Privacy
 
-This app makes no network requests and collects no data of any kind. Its
-only I/O is starting/stopping the apps you configure and reading/writing its
-own local settings file.
+This app makes no network requests and collects no data of any kind. All it
+does is start and stop the apps you set up, open Steam links for Steam
+games, and read and write its own local settings file.
 
 ## License
 
