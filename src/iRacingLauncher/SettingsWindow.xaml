@@ -7,6 +7,9 @@
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="Mica"
                   WindowStartupLocation="CenterOwner">
+    <ui:FluentWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </ui:FluentWindow.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -120,7 +123,21 @@
                                                            Click="AutoFindButton_Click" Tag="{Binding}" />
                                             </Grid>
                                             <ui:TextBox Text="{Binding Arguments, UpdateSourceTrigger=PropertyChanged}"
-                                                     PlaceholderText="Launch arguments (optional)" />
+                                                     IsEnabled="{Binding UsesSteam, Converter={StaticResource InverseBooleanConverter}}"
+                                                     PlaceholderText="Launch arguments (optional)" Margin="0,0,0,4" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ui:TextBox Grid.Column="0" Text="{Binding SteamAppId, UpdateSourceTrigger=PropertyChanged}"
+                                                         PlaceholderText="Steam App ID (optional, from the store page URL)" />
+                                                <CheckBox Grid.Column="1" Content="Launch in VR" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                          IsChecked="{Binding LaunchInVr}" IsEnabled="{Binding UsesSteam}" />
+                                            </Grid>
+                                            <TextBlock Text="Steam games: set launch options in Steam (Properties &gt; Launch Options)."
+                                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                       Visibility="{Binding UsesSteam, Converter={StaticResource BoolToVisibility}}" />
                                             <TextBlock Text="{Binding FindStatus}" FontSize="11" Opacity="0.7" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </ui:Card>

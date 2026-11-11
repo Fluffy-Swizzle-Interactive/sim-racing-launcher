@@ -123,8 +123,9 @@ public partial class MainWindow : FluentWindow
         foreach (var row in _rows.ToList())
         {
             // A blank path is invalid, not implicitly valid — an app with no path
-            // configured must read "Path not found" and have Start disabled.
-            row.PathValid = File.Exists(row.Definition.Path);
+            // configured must read "Path not found" and have Start disabled. A Steam
+            // app launches by its App ID, so it needs no path at all.
+            row.PathValid = SteamLaunch.IsLaunchable(row.Definition, File.Exists);
             row.IsRunning = _processService.IsRunning(row.Definition);
         }
     }

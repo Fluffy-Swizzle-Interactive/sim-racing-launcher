@@ -43,6 +43,26 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
         set { Model.Arguments = value; OnPropertyChanged(); }
     }
 
+    public string SteamAppId
+    {
+        get => Model.SteamAppId;
+        set
+        {
+            Model.SteamAppId = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UsesSteam));
+        }
+    }
+
+    public bool LaunchInVr
+    {
+        get => Model.LaunchInVr;
+        set { Model.LaunchInVr = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Drives the VR checkbox, the disabled Arguments box and the Steam hint.</summary>
+    public bool UsesSteam => SteamLaunch.UsesSteam(Model);
+
     private string _findStatus = string.Empty;
     public string FindStatus
     {
@@ -175,7 +195,7 @@ public partial class SettingsWindow : FluentWindow
 
         // Work on a deep copy so Cancel can genuinely discard edits — see task-7 review fix.
         _workingApps = _config.Apps
-            .Select(a => new AppDefinition { Id = a.Id, Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Arguments = a.Arguments })
+            .Select(a => a.Clone())
             .ToList();
         _workingProfiles = _config.Profiles
             .Select(p => new Profile
@@ -339,7 +359,11 @@ public partial class SettingsWindow : FluentWindow
 
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
     {
-        var app = new AppDefinition { Id = Guid.NewGuid().ToString("N"), Name = "New App", ProcessName = string.Empty, Path = string.Empty, Arguments = string.Empty };
+        var app = new AppDefinition
+        {
+            Id = Guid.NewGuid().ToString("N"), Name = "New App", ProcessName = string.Empty, Path = string.Empty,
+            Arguments = string.Empty, SteamAppId = string.Empty, LaunchInVr = false,
+        };
         _workingApps.Add(app);
         _appEditRows.Add(new AppEditRowViewModel(app));
 
@@ -446,9 +470,22 @@ public partial class SettingsWindow : FluentWindow
             : $"Two profiles are both named \"{duplicate.Key}\". Profile names have to be unique.";
     }
 
+    /// <summary>
+    /// A Steam App ID goes into a steam:// URL, so it must be just the number. A
+    /// pasted store URL is the likely mistake, hence the example in the message.
+    /// </summary>
+    /// <returns>An error to show the user, or null when every ID is blank or valid.</returns>
+    private string? ValidateSteamAppIds()
+    {
+        var bad = _workingApps.FirstOrDefault(a => SteamLaunch.UsesSteam(a) && !SteamLaunch.IsValidAppId(a.SteamAppId));
+        return bad is null
+            ? null
+            : $"The Steam App ID for \"{bad.Name}\" should be just the number, like 2399420.";
+    }
+
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var validationError = ValidateProfileNames();
+        var validationError = ValidateProfileNames() ?? ValidateSteamAppIds();
         if (validationError is not null)
         {
             ValidationInfoBar.Message = validationError;
@@ -462,6 +499,10 @@ public partial class SettingsWindow : FluentWindow
         foreach (var profile in _workingProfiles)
         {
             profile.Name = profile.Name.Trim();
+        }
+        foreach (var app in _workingApps)
+        {
+            app.SteamAppId = app.SteamAppId.Trim();
         }
 
         // Must mutate the existing lists in place rather than reassigning

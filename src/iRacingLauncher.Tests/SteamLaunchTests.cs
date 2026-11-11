@@ -78,6 +78,25 @@ public class SteamLaunchTests
         Assert.Equal("", app.SteamAppId);
     }
 
+    [Fact]
+    public void Clone_CopiesEverySettableProperty()
+    {
+        // Settings edits a copy so Cancel can discard changes. A property missed by
+        // the copy would be silently wiped on every Save, so check them all by
+        // reflection: adding a field to AppDefinition without copying it fails here.
+        var original = new AppDefinition();
+        var props = typeof(AppDefinition).GetProperties().Where(p => p.CanWrite).ToList();
+        foreach (var p in props)
+        {
+            p.SetValue(original, p.PropertyType == typeof(bool) ? true : (object)$"value-{p.Name}");
+        }
+
+        var copy = original.Clone();
+
+        Assert.NotSame(original, copy);
+        Assert.All(props, p => Assert.Equal(p.GetValue(original), p.GetValue(copy)));
+    }
+
     // ---- Task 2: SteamLaunch helper ----
 
     private static AppDefinition SteamApp(string id, bool vr = false, string path = "") => new()

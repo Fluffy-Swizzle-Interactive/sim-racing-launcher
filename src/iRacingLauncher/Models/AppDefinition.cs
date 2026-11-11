@@ -33,4 +33,11 @@ public class AppDefinition
 
     /// <summary>Launch through Steam's VR mode. Only applies when <see cref="SteamAppId"/> is set.</summary>
     public bool LaunchInVr { get; set; }
+
+    /// <summary>
+    /// An independent copy, used by Settings so Cancel can discard edits. Every
+    /// field is a string or bool, so a shallow copy is a full copy, and new fields
+    /// are copied automatically.
+    /// </summary>
+    public AppDefinition Clone() => (AppDefinition)MemberwiseClone();
 }
