@@ -29,9 +29,20 @@ public static class SteamAppIdFinder
                 return null;
             }
 
-            var parts = Path.GetFullPath(exePath).Split(Path.DirectorySeparatorChar);
-            // Last "steamapps\common\<installdir>" in the path, with something below it.
-            for (var i = parts.Length - 3; i >= 0; i--)
+            // Only a file that exists. Settings auto-fills on every keystroke, and a
+            // half-typed path can stop at another game's folder name (typing
+            // "...\common\assettocorsacompetizione\..." passes "...\common\assettocorsa"),
+            // which would fill in the wrong game's ID.
+            var fullPath = Path.GetFullPath(exePath);
+            if (!File.Exists(fullPath))
+            {
+                return null;
+            }
+
+            var parts = fullPath.Split(Path.DirectorySeparatorChar);
+            // Last "steamapps\common\<installdir>\..." in the path, with at least the
+            // file itself below the install folder.
+            for (var i = parts.Length - 4; i >= 0; i--)
             {
                 if (!parts[i].Equals("steamapps", StringComparison.OrdinalIgnoreCase)
                     || !parts[i + 1].Equals("common", StringComparison.OrdinalIgnoreCase))

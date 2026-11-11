@@ -49,6 +49,23 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
         }
     }
 
+    // Status is set before Path so that, when the new path auto-fills a Steam App
+    // ID, the setter's "Steam game detected" message is the one left showing.
+
+    /// <summary>The Browse button picked <paramref name="path"/>.</summary>
+    public void SetPathFromBrowse(string path)
+    {
+        FindStatus = string.Empty;
+        Path = path;
+    }
+
+    /// <summary>Auto-Find located the app at <paramref name="path"/>.</summary>
+    public void SetPathFromAutoFind(string path)
+    {
+        FindStatus = "Found — review and Save to confirm.";
+        Path = path;
+    }
+
     /// <summary>The Find ID button: fills the App ID from the path even when auto-fill held back.</summary>
     public void FindSteamAppId()
     {
@@ -421,8 +438,7 @@ public partial class SettingsWindow : FluentWindow
         var dialog = new OpenFileDialog { Filter = "Executable (*.exe)|*.exe", Title = $"Locate {row.Name}" };
         if (dialog.ShowDialog() == true)
         {
-            row.Path = dialog.FileName;
-            row.FindStatus = string.Empty;
+            row.SetPathFromBrowse(dialog.FileName);
         }
     }
 
@@ -454,8 +470,7 @@ public partial class SettingsWindow : FluentWindow
             var found = await Task.Run(() => _appFinder.FindPath(name, path));
             if (found is not null)
             {
-                row.Path = found;
-                row.FindStatus = "Found — review and Save to confirm.";
+                row.SetPathFromAutoFind(found);
             }
             else
             {

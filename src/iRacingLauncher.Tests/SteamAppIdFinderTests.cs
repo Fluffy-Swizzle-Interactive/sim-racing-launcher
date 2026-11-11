@@ -1,4 +1,5 @@
 using System.IO;
+using iRacingLauncher;
 using iRacingLauncher.Services;
 using Xunit;
 
@@ -124,6 +125,56 @@ public class SteamAppIdFinderTests : IDisposable
     public void FindAppId_BlankOrBadPath_ReturnsNull(string path)
     {
         Assert.Null(SteamAppIdFinder.FindAppId(path));
+    }
+
+    [Fact]
+    public void FindAppId_PathStoppingAtAnotherGamesFolder_ReturnsNull()
+    {
+        // Typing "...\common\assettocorsacompetizione\acc.exe" passes through
+        // "...\common\assettocorsa", another game's folder. That half-typed path must
+        // not match, or the wrong ID gets filled in and sticks.
+        AddGame("assettocorsa", "AssettoCorsa.exe");
+        AddManifest("244210", Manifest("244210", "assettocorsa"));
+
+        Assert.Null(SteamAppIdFinder.FindAppId(Path.Combine(SteamApps, "common", "assettocorsa")));
+        Assert.Null(SteamAppIdFinder.FindAppId(Path.Combine(SteamApps, "common", "assettocorsa", "Assetto")));
+    }
+
+    [Fact]
+    public void Settings_BrowseToSteamExe_FillsIdAndKeepsTheDetectedMessage()
+    {
+        var exe = AddGame("Le Mans Ultimate", "Le Mans Ultimate.exe");
+        AddManifest("2399420", Manifest("2399420", "Le Mans Ultimate"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+
+        row.SetPathFromBrowse(exe);
+
+        Assert.Equal("2399420", row.SteamAppId);
+        Assert.StartsWith("Steam game detected", row.FindStatus);
+    }
+
+    [Fact]
+    public void Settings_AutoFindSteamExe_FillsIdAndKeepsTheDetectedMessage()
+    {
+        var exe = AddGame("Le Mans Ultimate", "Le Mans Ultimate.exe");
+        AddManifest("2399420", Manifest("2399420", "Le Mans Ultimate"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+
+        row.SetPathFromAutoFind(exe);
+
+        Assert.Equal("2399420", row.SteamAppId);
+        Assert.StartsWith("Steam game detected", row.FindStatus);
+    }
+
+    [Fact]
+    public void Settings_AutoFindNonSteamExe_ShowsTheUsualFoundMessage()
+    {
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+
+        row.SetPathFromAutoFind(@"C:\iRacing\ui\iRacingUI.exe");
+
+        Assert.Equal("", row.SteamAppId);
+        Assert.Equal("Found — review and Save to confirm.", row.FindStatus);
     }
 
     [Theory]
