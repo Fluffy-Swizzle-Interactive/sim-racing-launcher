@@ -6,7 +6,7 @@
                   Title="Sim Racing Launcher" Height="480" Width="520"
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
-                  WindowBackdropType="Mica"
+                  WindowBackdropType="None"
                   WindowStartupLocation="CenterScreen">
     <Grid Margin="0,0,0,0">
         <Grid.RowDefinitions>

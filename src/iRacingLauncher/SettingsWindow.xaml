@@ -5,7 +5,7 @@
                   Title="Settings" Height="640" Width="860" MinWidth="760"
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
-                  WindowBackdropType="Mica"
+                  WindowBackdropType="None"
                   WindowStartupLocation="CenterOwner">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
@@ -332,7 +332,7 @@
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
             <ui:Button Content="Cancel" Margin="0,0,8,0" Click="CancelButton_Click" />
-            <ui:Button Content="Save" Click="SaveButton_Click" MinWidth="80" Foreground="Black"
+            <ui:Button Content="Save" Click="SaveButton_Click" MinWidth="80" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                        Background="{StaticResource SelectBlue}" MouseOverBackground="{StaticResource SelectBlueHover}"
                        PressedBackground="{StaticResource SelectBluePressed}" />
         </StackPanel>
