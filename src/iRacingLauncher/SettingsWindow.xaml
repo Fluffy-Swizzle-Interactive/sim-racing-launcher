@@ -6,6 +6,7 @@
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="None"
+                  Background="{DynamicResource ApplicationBackgroundBrush}"
                   WindowStartupLocation="CenterOwner">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
@@ -51,6 +52,8 @@
 
         <!-- Tabs: dimmed text, and a blue underline under the selected one. -->
         <Style TargetType="TabItem">
+            <!-- Without this, tab content falls back to WPF's default black text. -->
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
@@ -75,7 +78,7 @@
             </Setter>
         </Style>
     </ui:FluentWindow.Resources>
-    <Grid>
+    <Grid Background="{DynamicResource ApplicationBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />

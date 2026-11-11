@@ -7,8 +7,9 @@
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
                   WindowBackdropType="None"
+                  Background="{DynamicResource ApplicationBackgroundBrush}"
                   WindowStartupLocation="CenterScreen">
-    <Grid Margin="0,0,0,0">
+    <Grid Margin="0,0,0,0" Background="{DynamicResource ApplicationBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
