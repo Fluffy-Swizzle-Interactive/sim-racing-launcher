@@ -10,6 +10,9 @@ on:
 jobs:
   build_and_sign:
     runs-on: windows-latest
+    # contents: write lets a v* tag build create the GitHub Release below.
+    permissions:
+      contents: write
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -22,11 +25,24 @@ jobs:
       - name: test
         run: dotnet test src/iRacingLauncher.Tests/iRacingLauncher.Tests.csproj -c Release
 
+      # A v1.2.3 tag stamps the exe as version 1.2.3. Other builds keep the
+      # project's default version.
+      - name: version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+            "args=-p:Version=$version" >> $env:GITHUB_OUTPUT
+          } else {
+            "args=" >> $env:GITHUB_OUTPUT
+          }
+
       - name: publish
         run: >
           dotnet publish src/iRacingLauncher/iRacingLauncher.csproj
           -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
+          -p:PublishSingleFile=true ${{ steps.version.outputs.args }}
 
       - name: upload-unsigned-artifact
         id: upload-unsigned-artifact
@@ -61,3 +77,22 @@ jobs:
           name: SimRacingLauncher-signed
           path: SimRacingLauncher-signed
           if-no-files-found: error
+
+      # Only for v* tags: create the GitHub Release, with that version's
+      # section of CHANGELOG.md as the notes, and attach the exe (the signed
+      # one once SignPath is set up, otherwise the unsigned build).
+      - name: release
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          .github/scripts/changelog-section.ps1 -Version $tag | Set-Content release-notes.md -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $signed = "SimRacingLauncher-signed/SimRacingLauncher.exe"
+          $unsigned = "src/iRacingLauncher/bin/Release/net10.0-windows/win-x64/publish/SimRacingLauncher.exe"
+          $exe = if (Test-Path $signed) { $signed } else { $unsigned }
+
+          gh release create $tag $exe --title $tag --notes-file release-notes.md --verify-tag

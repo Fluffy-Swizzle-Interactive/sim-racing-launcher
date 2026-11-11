@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using System.Windows;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
+using iRacingLauncher.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -15,9 +16,9 @@ namespace iRacingLauncher;
 
 public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
 {
-    public AppEntry Model { get; }
+    public AppDefinition Model { get; }
 
-    public AppEditRowViewModel(AppEntry model) => Model = model;
+    public AppEditRowViewModel(AppDefinition model) => Model = model;
 
     public string Name
     {
@@ -34,7 +35,110 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
     public string Path
     {
         get => Model.Path;
-        set { Model.Path = value; OnPropertyChanged(); }
+        set
+        {
+            Model.Path = value;
+            OnPropertyChanged();
+            AutoFillSteamAppId();
+        }
+    }
+
+    /// <summary>
+    /// Fills the Steam App ID when the path is inside a Steam library, unless the
+    /// rules say not to (ID already set, launch arguments, Content Manager). Runs
+    /// whenever the path changes, and once per app when Settings opens so apps set
+    /// up before Steam support (e.g. iRacing in a Steam library) pick it up. Like
+    /// any edit in Settings, it only sticks if the user presses Save.
+    /// </summary>
+    public void AutoFillSteamAppId()
+    {
+        if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments, Path)
+            && SteamAppIdFinder.FindAppId(Path) is { } id)
+        {
+            SteamAppId = id;
+            FindStatus = $"Steam game detected (App ID {id}). It will launch through Steam.";
+        }
+    }
+
+    // Status is set before Path so that, when the new path auto-fills a Steam App
+    // ID, the setter's "Steam game detected" message is the one left showing.
+
+    /// <summary>The Browse button picked <paramref name="path"/>.</summary>
+    public void SetPathFromBrowse(string path)
+    {
+        FindStatus = string.Empty;
+        Path = path;
+    }
+
+    /// <summary>Auto-Find located the app at <paramref name="path"/>.</summary>
+    public void SetPathFromAutoFind(string path)
+    {
+        FindStatus = "Found — review and Save to confirm.";
+        Path = path;
+    }
+
+    /// <summary>The Find ID button: fills the App ID from the path even when auto-fill held back.</summary>
+    public void FindSteamAppId()
+    {
+        if (SteamAppIdFinder.FindAppId(Path) is { } id)
+        {
+            SteamAppId = id;
+            FindStatus = "Found Steam App ID. Review and Save to confirm.";
+        }
+        else
+        {
+            FindStatus = "Couldn't find a Steam App ID for this path. Copy it from the game's store page URL.";
+        }
+    }
+
+    public string Arguments
+    {
+        get => Model.Arguments;
+        set { Model.Arguments = value; OnPropertyChanged(); }
+    }
+
+    public string SteamAppId
+    {
+        get => Model.SteamAppId;
+        set
+        {
+            Model.SteamAppId = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UsesSteam));
+            OnPropertyChanged(nameof(ShowVrTag));
+        }
+    }
+
+    public bool LaunchInVr
+    {
+        get => Model.LaunchInVr;
+        set
+        {
+            Model.LaunchInVr = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowVrTag));
+        }
+    }
+
+    /// <summary>
+    /// Drives the VR checkbox, the disabled Arguments box and the Steam hint, and is
+    /// the Steam tag in the Apps list.
+    /// </summary>
+    public bool UsesSteam => SteamLaunch.UsesSteam(Model);
+
+    /// <summary>The VR tag in the Apps list: only when the app really launches in VR.</summary>
+    public bool ShowVrTag => UsesSteam && LaunchInVr;
+
+    private bool _isSearching;
+
+    /// <summary>
+    /// An Auto-Find search is running for this app. Lives on the app rather than the
+    /// button because the details pane's one Auto-Find button is shared by every app.
+    /// </summary>
+    public bool IsSearching
+    {
+        get => _isSearching;
+        set { _isSearching = value; OnPropertyChanged(); }
     }
 
     private string _findStatus = string.Empty;
@@ -58,7 +162,78 @@ public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChan
     public string Name
     {
         get => Model.Name;
-        set { Model.Name = value; OnPropertyChanged(); }
+        set
+        {
+            Model.Name = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ChecklistHeading));
+        }
+    }
+
+    /// <summary>The heading above this game's app checklist; never "for , in order".</summary>
+    public string ChecklistHeading => string.IsNullOrWhiteSpace(Name)
+        ? "Apps launched for this game, in order"
+        : $"Apps launched for {Name.Trim()}, in order";
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+}
+
+/// <summary>
+/// One row in the Games tab's app checklist for whichever game (profile) is currently
+/// being edited. An app the profile doesn't reference yet (no ProfileAppEntry in
+/// its AppRefs) still gets a row here — unchecked, with a null Entry — so the user
+/// has a way to enable it. Checking that row lazily creates a real ProfileAppEntry
+/// and appends it to the owning profile's AppRefs; unchecking an already-referenced
+/// row just flips its existing Entry.Selected rather than removing it, so its
+/// position in AppRefs (and thus its place in per-profile launch order) survives
+/// being unchecked and re-checked later.
+/// </summary>
+public class ProfileAppSelectionRowViewModel : System.ComponentModel.INotifyPropertyChanged
+{
+    public AppDefinition Definition { get; }
+    private readonly Profile _owningProfile;
+    private ProfileAppEntry? _entry;
+
+    /// <summary>Null until this row's app has been checked at least once for this profile.</summary>
+    public ProfileAppEntry? Entry => _entry;
+
+    /// <summary>Whether this profile already has a ProfileAppEntry for this app (vs. this row existing only to offer the option).</summary>
+    public bool IsReferenced => _entry is not null;
+
+    public ProfileAppSelectionRowViewModel(AppDefinition definition, ProfileAppEntry? entry, Profile owningProfile)
+    {
+        Definition = definition;
+        _entry = entry;
+        _owningProfile = owningProfile;
+    }
+
+    public string Name => Definition.Name;
+
+    public bool Selected
+    {
+        get => _entry?.Selected ?? false;
+        set
+        {
+            if (_entry is null)
+            {
+                // Unchecking a row that was never referenced (already false) is a no-op —
+                // don't create an entry just to record "not selected".
+                if (!value) return;
+
+                _entry = new ProfileAppEntry { AppId = Definition.Id, Selected = true };
+                _owningProfile.AppRefs.Add(_entry);
+                OnPropertyChanged(nameof(Entry));
+                OnPropertyChanged(nameof(IsReferenced));
+            }
+            else
+            {
+                if (_entry.Selected == value) return;
+                _entry.Selected = value;
+            }
+            OnPropertyChanged();
+        }
     }
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -75,14 +250,17 @@ public partial class SettingsWindow : FluentWindow
     private readonly SettingsService _settingsService;
     private readonly AppFinderService _appFinder;
     private readonly ObservableCollection<ProfileEditRowViewModel> _profileEditRows = new();
-    private readonly ObservableCollection<AppEditRowViewModel> _editRows = new();
+    private readonly ObservableCollection<AppEditRowViewModel> _appEditRows = new();
+    private readonly ObservableCollection<ProfileAppSelectionRowViewModel> _profileAppRows = new();
+    private readonly List<AppDefinition> _workingApps;
     private readonly List<Profile> _workingProfiles;
     private readonly string _originalTheme;
 
     /// <summary>
-    /// The profile whose apps the "App List" card is currently showing/editing.
-    /// Tracked by reference (not name) so renaming it in the Profiles list doesn't
-    /// lose track of it.
+    /// The game (profile) selected on the Games tab, whose app checklist is showing
+    /// (ticked/unticked against the shared app list on the Apps tab). Tracked by
+    /// reference (not name) so renaming it in the Games list doesn't lose track
+    /// of it.
     /// </summary>
     private Profile _currentEditingProfile;
 
@@ -104,11 +282,14 @@ public partial class SettingsWindow : FluentWindow
         _originalTheme = _config.Theme;
 
         // Work on a deep copy so Cancel can genuinely discard edits — see task-7 review fix.
+        _workingApps = _config.Apps
+            .Select(a => a.Clone())
+            .ToList();
         _workingProfiles = _config.Profiles
             .Select(p => new Profile
             {
                 Name = p.Name,
-                Apps = p.Apps.Select(a => new AppEntry { Name = a.Name, ProcessName = a.ProcessName, Path = a.Path, Selected = a.Selected }).ToList(),
+                AppRefs = p.AppRefs.Select(r => new ProfileAppEntry { AppId = r.AppId, Selected = r.Selected }).ToList(),
             })
             .ToList();
 
@@ -116,22 +297,36 @@ public partial class SettingsWindow : FluentWindow
         {
             _profileEditRows.Add(new ProfileEditRowViewModel(profile));
         }
-        ProfileEditList.ItemsSource = _profileEditRows;
+        GameList.ItemsSource = _profileEditRows;
+
+        foreach (var app in _workingApps)
+        {
+            var row = new AppEditRowViewModel(app);
+            // Apps set up before Steam support pick up their ID now (kept only on Save).
+            row.AutoFillSteamAppId();
+            _appEditRows.Add(row);
+        }
+        AppList.ItemsSource = _appEditRows;
+        AppList.SelectedIndex = _appEditRows.Count > 0 ? 0 : -1;
+        UpdateAppDetailsVisibility();
+        ProfileAppList.ItemsSource = _profileAppRows;
 
         _workingActiveProfile = _workingProfiles.FirstOrDefault(p => p.Name == _config.ActiveProfileName) ?? _workingProfiles[0];
         _currentEditingProfile = _workingActiveProfile;
-        AppEditList.ItemsSource = _editRows;
-        LoadEditRowsFromCurrentProfile();
+        LoadProfileAppRowsFromCurrentProfile();
+        // Open on the active game. Selecting a game only picks which one is being
+        // edited; it never changes _workingActiveProfile.
+        GameList.SelectedItem = RowFor(_workingActiveProfile);
 
         // Plain ui:TextBox, not ui:NumberBox: NumberBox has a real WPF-UI rendering bug
         // where text set before the control's first layout pass never paints (root-caused
         // via its actual XAML template/TextBox.cs source — the placeholder-visibility
         // sync in OnTextChanged, and the underlying text rendering itself, both depend on
-        // the TextEditor already existing, which it doesn't yet here since "Launch
-        // Behavior" starts collapsed). ui:TextBox has none of that; parsed manually below.
+        // the TextEditor already existing, which it doesn't yet here since the General
+        // tab isn't shown until picked). ui:TextBox has none of that; parsed manually below.
         DelayBox.Text = _config.LaunchDelaySeconds.ToString();
         StartupToggle.IsChecked = _config.LaunchAtWindowsStartup;
-        MinimizeToTrayToggle.IsChecked = _config.MinimizeToTray;
+        CloseToTrayToggle.IsChecked = _config.CloseToTray;
         ThemeToggle.IsChecked = _config.Theme == "Dark";
 
         TitleBarIcon.Source = TitleBarIconSource.ForTheme(ApplicationThemeManager.GetAppTheme());
@@ -141,24 +336,107 @@ public partial class SettingsWindow : FluentWindow
     private void OnAppThemeChanged(ApplicationTheme theme, System.Windows.Media.Color systemAccent) =>
         TitleBarIcon.Source = TitleBarIconSource.ForTheme(theme);
 
-    private void LoadEditRowsFromCurrentProfile()
+    private void LoadProfileAppRowsFromCurrentProfile()
     {
-        _editRows.Clear();
-        foreach (var app in _currentEditingProfile.Apps)
+        _profileAppRows.Clear();
+        var referencedAppIds = new HashSet<string>();
+        foreach (var entry in _currentEditingProfile.AppRefs)
         {
-            _editRows.Add(new AppEditRowViewModel(app));
+            // Cascading delete keeps AppRefs in sync with the registry, but a
+            // hand-edited config could still carry a stale AppId — skip that row
+            // rather than crashing Settings.
+            var definition = _workingApps.FirstOrDefault(a => a.Id == entry.AppId);
+            if (definition is null) continue;
+            referencedAppIds.Add(entry.AppId);
+            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(definition, entry, _currentEditingProfile));
         }
-        EditingProfileLabel.Text = $"Editing: {_currentEditingProfile.Name}";
+
+        // Apps this profile doesn't reference yet are appended unchecked, so there's
+        // always a way to enable any app for any profile — see finding 3.
+        foreach (var app in _workingApps)
+        {
+            if (referencedAppIds.Contains(app.Id)) continue;
+            _profileAppRows.Add(new ProfileAppSelectionRowViewModel(app, entry: null, _currentEditingProfile));
+        }
+    }
+
+    private ProfileEditRowViewModel? RowFor(Profile profile) =>
+        _profileEditRows.FirstOrDefault(r => ReferenceEquals(r.Model, profile));
+
+    private void GameList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Null while a removed row's neighbour is being picked (the follow-up
+        // selection does the work), or after a Ctrl+click un-selects the row.
+        if (GameList.SelectedItem is not ProfileEditRowViewModel row)
+        {
+            KeepSelection(GameList, e);
+            return;
+        }
+        _currentEditingProfile = row.Model;
+        LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    private void AppList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        KeepSelection(AppList, e);
+        UpdateAppDetailsVisibility();
+    }
+
+    /// <summary>
+    /// A WPF ListBox un-selects its item on Ctrl+click, which would leave the details
+    /// pane blank (or claiming there are no apps) while the list isn't empty. Put the
+    /// previous item back. Deferred so a delete handler that is about to pick a
+    /// neighbour gets to do that first; only re-selects if nothing else did.
+    /// </summary>
+    private void KeepSelection(System.Windows.Controls.ListBox list, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (list.SelectedItem is not null || list.Items.Count == 0 || e.RemovedItems.Count == 0) return;
+        var previous = e.RemovedItems[0];
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (list.SelectedItem is null && list.Items.Contains(previous))
+            {
+                list.SelectedItem = previous;
+            }
+        });
+    }
+
+    /// <summary>The details pane only makes sense with an app picked; otherwise say how to add one.</summary>
+    private void UpdateAppDetailsVisibility()
+    {
+        var hasApp = AppList.SelectedItem is not null;
+        AppDetails.Visibility = hasApp ? Visibility.Visible : Visibility.Collapsed;
+        NoAppsText.Visibility = hasApp ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SettingsTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // SelectionChanged bubbles up from the lists inside the tabs; only react to
+        // the tab strip itself. Coming back to Games reloads the checklist so app
+        // renames and new apps from the Apps tab show up.
+        if (!ReferenceEquals(e.OriginalSource, SettingsTabs)) return;
+        if (ReferenceEquals(SettingsTabs.SelectedItem, GamesTab))
+        {
+            LoadProfileAppRowsFromCurrentProfile();
+        }
     }
 
     private void AddProfileButton_Click(object sender, RoutedEventArgs e)
     {
-        var profile = new Profile { Name = "New Profile", Apps = new List<AppEntry>() };
+        // A new profile starts with every existing app selected, same default as
+        // a newly-added app being selected in every existing profile.
+        var profile = new Profile
+        {
+            Name = "New game",
+            AppRefs = _workingApps.Select(a => new ProfileAppEntry { AppId = a.Id, Selected = true }).ToList(),
+        };
         _workingProfiles.Add(profile);
-        _profileEditRows.Add(new ProfileEditRowViewModel(profile));
-
-        _currentEditingProfile = profile;
-        LoadEditRowsFromCurrentProfile();
+        var row = new ProfileEditRowViewModel(profile);
+        _profileEditRows.Add(row);
+        GameList.SelectedItem = row;
+        GameList.ScrollIntoView(row);
+        GameNameBox.Focus();
+        GameNameBox.SelectAll();
     }
 
     private void RemoveProfileButton_Click(object sender, RoutedEventArgs e)
@@ -167,13 +445,13 @@ public partial class SettingsWindow : FluentWindow
         // Always leave at least one profile — there must always be something to launch.
         if (_workingProfiles.Count <= 1) return;
 
+        var index = _profileEditRows.IndexOf(row);
         _workingProfiles.Remove(row.Model);
         _profileEditRows.Remove(row);
 
-        if (ReferenceEquals(_currentEditingProfile, row.Model))
+        if (ReferenceEquals(_currentEditingProfile, row.Model) || GameList.SelectedItem is null)
         {
-            _currentEditingProfile = _workingProfiles[0];
-            LoadEditRowsFromCurrentProfile();
+            GameList.SelectedIndex = ListSelection.AfterRemoval(index, _profileEditRows.Count);
         }
         if (ReferenceEquals(_workingActiveProfile, row.Model))
         {
@@ -181,45 +459,113 @@ public partial class SettingsWindow : FluentWindow
         }
     }
 
-    private void EditProfileAppsButton_Click(object sender, RoutedEventArgs e)
+    private void MoveProfileUpButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
-        _currentEditingProfile = row.Model;
-        LoadEditRowsFromCurrentProfile();
+        var index = _profileEditRows.IndexOf(row);
+        if (index <= 0) return;
+        _profileEditRows.Move(index, index - 1);
+        _workingProfiles.Remove(row.Model);
+        _workingProfiles.Insert(index - 1, row.Model);
+        GameList.SelectedItem = row;
+    }
+
+    private void MoveProfileDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
+        var index = _profileEditRows.IndexOf(row);
+        if (index < 0 || index >= _profileEditRows.Count - 1) return;
+        _profileEditRows.Move(index, index + 1);
+        _workingProfiles.Remove(row.Model);
+        _workingProfiles.Insert(index + 1, row.Model);
+        GameList.SelectedItem = row;
+    }
+
+    private void MoveProfileAppUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
+        if (row.Entry is not { } entry) return;
+        // Index within AppRefs itself, not within _profileAppRows: that list also
+        // holds not-yet-referenced rows interleaved with referenced ones, so its
+        // indices don't correspond 1:1 to AppRefs positions once both kinds are
+        // present — using it here silently mis-ordered (or no-opped) a save.
+        var index = _currentEditingProfile.AppRefs.IndexOf(entry);
+        if (index <= 0) return;
+        _currentEditingProfile.AppRefs.RemoveAt(index);
+        _currentEditingProfile.AppRefs.Insert(index - 1, entry);
+        LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    private void MoveProfileAppDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is not ProfileAppSelectionRowViewModel row) return;
+        // A not-yet-referenced row has no AppRefs position to move — no-op until it's checked.
+        if (row.Entry is not { } entry) return;
+        var index = _currentEditingProfile.AppRefs.IndexOf(entry);
+        if (index < 0 || index >= _currentEditingProfile.AppRefs.Count - 1) return;
+        _currentEditingProfile.AppRefs.RemoveAt(index);
+        _currentEditingProfile.AppRefs.Insert(index + 1, entry);
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void AddAppButton_Click(object sender, RoutedEventArgs e)
     {
-        var app = new AppEntry { Name = "New App", ProcessName = string.Empty, Path = string.Empty, Selected = true };
-        _currentEditingProfile.Apps.Add(app);
-        _editRows.Add(new AppEditRowViewModel(app));
+        var app = new AppDefinition
+        {
+            Id = Guid.NewGuid().ToString("N"), Name = "New App", ProcessName = string.Empty, Path = string.Empty,
+            Arguments = string.Empty, SteamAppId = string.Empty, LaunchInVr = false,
+        };
+        _workingApps.Add(app);
+        var row = new AppEditRowViewModel(app);
+        _appEditRows.Add(row);
+        AppList.SelectedItem = row;
+        AppList.ScrollIntoView(row);
+
+        // A newly-added app starts selected in every existing profile.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.AppRefs.Add(new ProfileAppEntry { AppId = app.Id, Selected = true });
+        }
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
     private void RemoveAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _editRows.Remove(row);
+        var index = _appEditRows.IndexOf(row);
+        _workingApps.Remove(row.Model);
+        _appEditRows.Remove(row);
+        AppList.SelectedIndex = ListSelection.AfterRemoval(index, _appEditRows.Count);
+        FocusSelectedApp();
+
+        // Deleting an app from the registry cascades to every profile referencing it.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.AppRefs.RemoveAll(r => r.AppId == row.Model.Id);
+        }
+        LoadProfileAppRowsFromCurrentProfile();
     }
 
-    private void MoveAppUpButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Deleting an app removes the Delete button that had keyboard focus along with
+    /// the app's details, leaving focus nowhere. Move it to the newly selected app in
+    /// the list (or the list itself when it's now empty), after the list has updated.
+    /// </summary>
+    private void FocusSelectedApp()
     {
-        if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        var index = _editRows.IndexOf(row);
-        if (index <= 0) return;
-        _editRows.Move(index, index - 1);
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _currentEditingProfile.Apps.Insert(index - 1, row.Model);
-    }
-
-    private void MoveAppDownButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (((FrameworkElement)sender).Tag is not AppEditRowViewModel row) return;
-        var index = _editRows.IndexOf(row);
-        if (index < 0 || index >= _editRows.Count - 1) return;
-        _editRows.Move(index, index + 1);
-        _currentEditingProfile.Apps.Remove(row.Model);
-        _currentEditingProfile.Apps.Insert(index + 1, row.Model);
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (AppList.SelectedItem is not null
+                && AppList.ItemContainerGenerator.ContainerFromItem(AppList.SelectedItem) is System.Windows.Controls.ListBoxItem item)
+            {
+                item.Focus();
+            }
+            else
+            {
+                AppList.Focus();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -228,8 +574,15 @@ public partial class SettingsWindow : FluentWindow
         var dialog = new OpenFileDialog { Filter = "Executable (*.exe)|*.exe", Title = $"Locate {row.Name}" };
         if (dialog.ShowDialog() == true)
         {
-            row.Path = dialog.FileName;
-            row.FindStatus = string.Empty;
+            row.SetPathFromBrowse(dialog.FileName);
+        }
+    }
+
+    private void FindSteamIdButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is AppEditRowViewModel row)
+        {
+            row.FindSteamAppId();
         }
     }
 
@@ -239,17 +592,21 @@ public partial class SettingsWindow : FluentWindow
         if (button.Tag is not AppEditRowViewModel row) return;
 
         // A full Program Files walk takes tens of seconds — never on the UI thread.
-        button.IsEnabled = false;
+        row.IsSearching = true;
         row.FindStatus = "Searching...";
         try
         {
-            var name = row.Name;
+            // Prefer ProcessName: it's the exe/shortcut base name we actually expect
+            // to find on disk (e.g. "Content Manager"), whereas Name is a free-text
+            // display label that can diverge from it (e.g. "Assetto Corsa (Content
+            // Manager)"). Fall back to Name only when ProcessName hasn't been filled
+            // in yet, such as for a brand-new user-added app.
+            var name = string.IsNullOrWhiteSpace(row.ProcessName) ? row.Name : row.ProcessName;
             var path = row.Path;
             var found = await Task.Run(() => _appFinder.FindPath(name, path));
             if (found is not null)
             {
-                row.Path = found;
-                row.FindStatus = "Found — review and Save to confirm.";
+                row.SetPathFromAutoFind(found);
             }
             else
             {
@@ -263,7 +620,7 @@ public partial class SettingsWindow : FluentWindow
         }
         finally
         {
-            button.IsEnabled = true;
+            row.IsSearching = false;
         }
     }
 
@@ -273,12 +630,63 @@ public partial class SettingsWindow : FluentWindow
         ApplicationThemeManager.Apply(theme);
     }
 
+    /// <summary>
+    /// Brings what a blocked Save is complaining about into view: switches to its tab
+    /// and selects that game or app, so the message never points at something hidden.
+    /// </summary>
+    private void ShowProblem(SettingsProblem problem)
+    {
+        if (problem.Game is not null && RowFor(problem.Game) is { } gameRow)
+        {
+            SettingsTabs.SelectedItem = GamesTab;
+            GameList.SelectedItem = gameRow;
+            GameList.ScrollIntoView(gameRow);
+            // Every game problem is about its name, so put the cursor there. Deferred
+            // until the Games tab has been laid out, or the box can't take focus yet.
+            Dispatcher.BeginInvoke(() =>
+            {
+                GameNameBox.Focus();
+                GameNameBox.SelectAll();
+            }, System.Windows.Threading.DispatcherPriority.Input);
+        }
+        else if (problem.App is not null
+                 && _appEditRows.FirstOrDefault(r => ReferenceEquals(r.Model, problem.App)) is { } appRow)
+        {
+            SettingsTabs.SelectedItem = AppsTab;
+            AppList.SelectedItem = appRow;
+            AppList.ScrollIntoView(appRow);
+        }
+    }
+
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        // Must mutate the existing List<Profile> in place rather than reassigning
-        // _config.Profiles: App.xaml.cs's tray "Launch Selected" closure captures
-        // config and reads config.ActiveProfile.Apps lazily, so swapping the list
-        // reference would silently leave the tray menu launching a stale app list.
+        var problem = SettingsValidation.Validate(_workingProfiles, _workingApps);
+        if (problem is not null)
+        {
+            ShowProblem(problem);
+            ValidationInfoBar.Message = problem.Message;
+            ValidationInfoBar.IsOpen = true;
+            return;
+        }
+        ValidationInfoBar.IsOpen = false;
+
+        // Names are stored trimmed so " iRacing" and "iRacing" can't round-trip into
+        // the duplicate case the check above just rejected.
+        foreach (var profile in _workingProfiles)
+        {
+            profile.Name = profile.Name.Trim();
+        }
+        foreach (var app in _workingApps)
+        {
+            app.SteamAppId = app.SteamAppId.Trim();
+        }
+
+        // Must mutate the existing lists in place rather than reassigning
+        // _config.Apps/_config.Profiles: App.xaml.cs's tray "Launch Selected" closure
+        // captures config and reads config.ActiveProfile lazily, so swapping either
+        // list reference would silently leave the tray menu launching stale data.
+        _config.Apps.Clear();
+        _config.Apps.AddRange(_workingApps);
         _config.Profiles.Clear();
         _config.Profiles.AddRange(_workingProfiles);
         _config.ActiveProfileName = _workingActiveProfile.Name;
@@ -290,7 +698,7 @@ public partial class SettingsWindow : FluentWindow
             ? Math.Clamp(delaySeconds, 0, 30)
             : 2;
         _config.LaunchAtWindowsStartup = StartupToggle.IsChecked == true;
-        _config.MinimizeToTray = MinimizeToTrayToggle.IsChecked == true;
+        _config.CloseToTray = CloseToTrayToggle.IsChecked == true;
         _config.Theme = ThemeToggle.IsChecked == true ? "Dark" : "Light";
 
         ApplyStartupRegistration(_config.LaunchAtWindowsStartup);

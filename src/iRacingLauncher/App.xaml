@@ -6,6 +6,12 @@
     <Application.Resources>
         <ResourceDictionary>
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+
+            <!-- The launcher's blue: only for selected cells and the main action
+                 buttons (Save, Launch Selected). Everything else stays grey. -->
+            <SolidColorBrush x:Key="SelectBlue" Color="#4CC2FF" />
+            <SolidColorBrush x:Key="SelectBlueHover" Color="#6BCEFF" />
+            <SolidColorBrush x:Key="SelectBluePressed" Color="#3AA8E0" />
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />

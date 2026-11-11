@@ -6,10 +6,10 @@
                   Title="Sim Racing Launcher" Height="480" Width="520"
                   Icon="pack://application:,,,/Assets/SimRacingLauncher.ico"
                   ExtendsContentIntoTitleBar="True"
-                  WindowBackdropType="Mica"
-                  WindowStartupLocation="CenterScreen"
-                  StateChanged="FluentWindow_StateChanged">
-    <Grid Margin="0,0,0,0">
+                  WindowBackdropType="None"
+                  Background="{DynamicResource ApplicationBackgroundBrush}"
+                  WindowStartupLocation="CenterScreen">
+    <Grid Margin="0,0,0,0" Background="{DynamicResource ApplicationBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -61,7 +61,10 @@
                        HorizontalContentAlignment="Center" Margin="0,0,8,0"
                        ToolTip="Settings" Click="SettingsButton_Click" />
             <ui:Button x:Name="LaunchButton" Grid.Column="1" Content="Launch Selected" Icon="Play20"
-                       Appearance="Primary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                       Background="{StaticResource SelectBlue}" MouseOverBackground="{StaticResource SelectBlueHover}"
+                       PressedBackground="{StaticResource SelectBluePressed}"
                        Click="LaunchButton_Click" />
             <ui:Button x:Name="StopAllButton" Grid.Column="2" Content="Stop All" Icon="{ui:SymbolIcon Stop20}"
                        Appearance="Danger" Margin="8,0,0,0" Click="StopAllButton_Click" />

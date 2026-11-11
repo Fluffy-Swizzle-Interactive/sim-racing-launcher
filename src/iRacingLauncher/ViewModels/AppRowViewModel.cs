@@ -7,14 +7,16 @@ namespace iRacingLauncher.ViewModels;
 
 public class AppRowViewModel : INotifyPropertyChanged
 {
-    public AppEntry Model { get; }
+    public AppDefinition Definition { get; }
+    private readonly ProfileAppEntry _entry;
 
-    public AppRowViewModel(AppEntry model)
+    public AppRowViewModel(AppDefinition definition, ProfileAppEntry entry)
     {
-        Model = model;
+        Definition = definition;
+        _entry = entry;
     }
 
-    public string Name => Model.Name;
+    public string Name => Definition.Name;
 
     private bool _isRunning;
     public bool IsRunning
@@ -28,7 +30,6 @@ public class AppRowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(StatusColor));
             OnPropertyChanged(nameof(IsStartable));
-            if (!IsStartable) Selected = false;
         }
     }
 
@@ -44,17 +45,16 @@ public class AppRowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(StatusColor));
             OnPropertyChanged(nameof(IsStartable));
-            if (!IsStartable) Selected = false;
         }
     }
 
     public bool Selected
     {
-        get => Model.Selected;
+        get => _entry.Selected;
         set
         {
-            if (Model.Selected == value) return;
-            Model.Selected = value;
+            if (_entry.Selected == value) return;
+            _entry.Selected = value;
             OnPropertyChanged();
         }
     }

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
 using iRacingLauncher.ViewModels;
@@ -23,6 +24,8 @@ public partial class MainWindow : FluentWindow
     private readonly AppFinderService _appFinder;
     private readonly ObservableCollection<AppRowViewModel> _rows = new();
     private readonly DispatcherTimer _statusTimer;
+    private bool _isExiting;
+    private System.Threading.CancellationTokenSource? _launchCts;
 
     public MainWindow(
         LauncherConfig config,
@@ -67,12 +70,37 @@ public partial class MainWindow : FluentWindow
 
     private void LoadRowsFromActiveProfile()
     {
-        _rows.Clear();
-        foreach (var app in _config.ActiveProfile.Apps)
+        foreach (var existingRow in _rows)
         {
-            _rows.Add(new AppRowViewModel(app) { Icon = TryLoadIcon(app.Path) });
+            existingRow.PropertyChanged -= AppRow_PropertyChanged;
+        }
+        _rows.Clear();
+        foreach (var entry in _config.ActiveProfile.AppRefs.Where(r => r.Selected))
+        {
+            // Cascading delete in Settings keeps AppRefs in sync with the registry,
+            // but a hand-edited config could still carry a stale AppId — skip that
+            // row rather than crashing the whole main window.
+            var definition = _config.Apps.FirstOrDefault(a => a.Id == entry.AppId);
+            if (definition is null) continue;
+            var row = new AppRowViewModel(definition, entry) { Icon = TryLoadIcon(definition.Path) };
+            row.PropertyChanged += AppRow_PropertyChanged;
+            _rows.Add(row);
         }
         AppList.ItemsSource = _rows;
+    }
+
+    /// <summary>
+    /// Only Selected apps are shown at all, so unchecking one here must remove its
+    /// row immediately rather than leave an unchecked row behind — the app stays in
+    /// the profile's AppRefs with Selected=false; the Games tab's app checklist in Settings
+    /// is the way back onto this list.
+    /// </summary>
+    private void AppRow_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(AppRowViewModel.Selected)) return;
+        if (sender is not AppRowViewModel row || row.Selected) return;
+        row.PropertyChanged -= AppRow_PropertyChanged;
+        _rows.Remove(row);
     }
 
     private void ProfileComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -88,12 +116,17 @@ public partial class MainWindow : FluentWindow
 
     private void RefreshStatuses()
     {
-        foreach (var row in _rows)
+        // Iterate a snapshot: a row's PropertyChanged handler removes it from _rows
+        // when it becomes deselected, and this runs on a 2-second timer tick, so
+        // enumerating the live collection would risk tearing down the whole window
+        // with a "collection was modified" exception mid-refresh.
+        foreach (var row in _rows.ToList())
         {
             // A blank path is invalid, not implicitly valid — an app with no path
-            // configured must read "Path not found" and have Start disabled.
-            row.PathValid = File.Exists(row.Model.Path);
-            row.IsRunning = _processService.IsRunning(row.Model);
+            // configured must read "Path not found" and have Start disabled. A Steam
+            // app launches by its App ID, so it needs no path at all.
+            row.PathValid = SteamLaunch.IsLaunchable(row.Definition, File.Exists);
+            row.IsRunning = _processService.IsRunning(row.Definition);
         }
     }
 
@@ -119,37 +152,74 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    private async void LaunchButton_Click(object sender, RoutedEventArgs e)
+    private async void LaunchButton_Click(object sender, RoutedEventArgs e) => await LaunchSelectedAsync();
+
+    /// <summary>
+    /// Launches every selected app in the active profile. Shared by the Launch
+    /// Selected button and the tray menu's own "Launch Selected" item, so both go
+    /// through the same cancellation-aware path — see <see cref="_launchCts"/>.
+    /// </summary>
+    public async Task LaunchSelectedAsync()
     {
+        // Disabling the Launch button doesn't prevent re-entry: the tray menu's own
+        // "Launch Selected" calls straight in here, and works while the window is
+        // hidden. So supersede any launch already in flight rather than running two
+        // batches over the same apps. Each invocation owns exactly one token source
+        // and disposes it in its own finally, so cancelling `previous` here can
+        // never touch one that's already been disposed.
+        var previous = _launchCts;
+        var cts = new System.Threading.CancellationTokenSource();
+        _launchCts = cts;
+        previous?.Cancel();
+
         LaunchButton.IsEnabled = false;
         LaunchInfoBar.IsOpen = false;
         var progress = new Progress<(int Current, int Total)>(p =>
-            LaunchButton.Content = $"Launching {p.Current} of {p.Total}…");
+        {
+            // A superseded batch must not keep painting its own progress over the
+            // batch that replaced it.
+            if (ReferenceEquals(_launchCts, cts))
+            {
+                LaunchButton.Content = $"Launching {p.Current} of {p.Total}…";
+            }
+        });
         try
         {
-            var result = await _processService.LaunchSelectedAsync(_config.ActiveProfile.Apps, _config.LaunchDelaySeconds, progress);
-            if (result.Failed.Count > 0)
+            var selectedApps = _config.ResolveApps(_config.ActiveProfile.AppRefs.Where(r => r.Selected)).ToList();
+            var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress, cts.Token);
+            if (result.Failed.Count > 0 && ReferenceEquals(_launchCts, cts))
             {
-                LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
+                LaunchInfoBar.Message = LaunchMessages.CouldNotStart(result.Failed, selectedApps);
                 LaunchInfoBar.IsOpen = true;
             }
         }
         catch (Exception)
         {
-            // Never let a launch failure take the app down; the status refresh in
-            // the finally block reports whatever actually ended up running.
+            // Never let a launch failure take the app down; the status refresh
+            // below reports whatever actually ended up running.
         }
         finally
         {
-            RefreshStatuses();
-            LaunchButton.Content = "Launch Selected";
-            LaunchButton.IsEnabled = true;
+            // Only the newest batch owns the button. A superseded one finishing
+            // later must not re-enable it while its replacement is still launching.
+            if (ReferenceEquals(_launchCts, cts))
+            {
+                _launchCts = null;
+                RefreshStatuses();
+                LaunchButton.Content = "Launch Selected";
+                LaunchButton.IsEnabled = true;
+            }
+            cts.Dispose();
         }
     }
 
     private void StopAllButton_Click(object sender, RoutedEventArgs e)
     {
-        _processService.StopAll(_config.ActiveProfile.Apps);
+        // Cancel any in-progress launch batch first — otherwise it keeps staggering
+        // through its remaining apps regardless of Stop All, and can even re-launch
+        // one this just killed once the loop reaches it.
+        _launchCts?.Cancel();
+        _processService.StopAll(_config.ResolveApps(_config.ActiveProfile.AppRefs));
         RefreshStatuses();
     }
 
@@ -157,7 +227,7 @@ public partial class MainWindow : FluentWindow
     {
         try
         {
-            _processService.StartApp(row.Model);
+            _processService.StartApp(row.Definition);
         }
         catch (Exception)
         {
@@ -170,7 +240,7 @@ public partial class MainWindow : FluentWindow
 
     private void AppRow_StopRequested(object? sender, AppRowViewModel row)
     {
-        _processService.StopApp(row.Model);
+        _processService.StopApp(row.Definition);
         RefreshStatuses();
     }
 
@@ -186,16 +256,22 @@ public partial class MainWindow : FluentWindow
         RefreshStatuses();
     }
 
-    private void FluentWindow_StateChanged(object? sender, EventArgs e)
-    {
-        if (WindowState == WindowState.Minimized && _config.MinimizeToTray)
-        {
-            Hide();
-        }
-    }
+    /// <summary>Called before a real shutdown (tray "Exit") so OnClosing lets it through instead of hiding to tray.</summary>
+    public void PrepareForExit() => _isExiting = true;
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        if (_config.CloseToTray && !_isExiting)
+        {
+            // Persist here too — a Windows logoff/shutdown (or any other close path
+            // that isn't tray "Exit") lands here and must not silently drop unsaved
+            // changes just because the window is hiding instead of exiting.
+            _settingsService.Save(_config);
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
         ApplicationThemeManager.Changed -= OnAppThemeChanged;
         _settingsService.Save(_config);
         base.OnClosing(e);

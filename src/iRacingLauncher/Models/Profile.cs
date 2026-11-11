@@ -5,5 +5,5 @@ namespace iRacingLauncher.Models;
 public class Profile
 {
     public string Name { get; set; } = string.Empty;
-    public List<AppEntry> Apps { get; set; } = new();
+    public List<ProfileAppEntry> AppRefs { get; set; } = new();
 }

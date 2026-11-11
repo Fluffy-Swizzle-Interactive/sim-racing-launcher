@@ -8,6 +8,7 @@ public class FakeProcessGateway : IProcessGateway
 {
     public HashSet<string> RunningProcessNames { get; } = new();
     public List<string> StartedPaths { get; } = new();
+    public List<string> StartedArguments { get; } = new();
     public List<string> KilledProcessNames { get; } = new();
 
     /// <summary>Paths for which Start() reports failure, simulating a missing/invalid exe.</summary>
@@ -15,73 +16,86 @@ public class FakeProcessGateway : IProcessGateway
 
     public bool IsRunning(string processName) => RunningProcessNames.Contains(processName);
 
-    public bool Start(string exePath)
+    public bool Start(string exePath, string arguments)
     {
         StartedPaths.Add(exePath);
+        StartedArguments.Add(arguments);
         return !FailingPaths.Contains(exePath);
     }
 
     public void Kill(string processName) => KilledProcessNames.Add(processName);
+
+    public List<string> OpenedUrls { get; } = new();
+
+    /// <summary>When true, OpenSteamUrl() reports failure, simulating Steam not installed.</summary>
+    public bool FailOpenUrls { get; set; }
+
+    public bool OpenSteamUrl(string url)
+    {
+        OpenedUrls.Add(url);
+        return !FailOpenUrls;
+    }
 }
 
 public class ProcessServiceTests
 {
-    private static List<AppEntry> ThreeApps() => new()
+    private static List<AppDefinition> ThreeApps() => new()
     {
-        new AppEntry { Name = "A", ProcessName = "procA", Path = @"C:\a.exe", Selected = true },
-        new AppEntry { Name = "B", ProcessName = "procB", Path = @"C:\b.exe", Selected = true },
-        new AppEntry { Name = "C", ProcessName = "procC", Path = @"C:\c.exe", Selected = true },
+        new AppDefinition { Id = "a", Name = "A", ProcessName = "procA", Path = @"C:\a.exe" },
+        new AppDefinition { Id = "b", Name = "B", ProcessName = "procB", Path = @"C:\b.exe" },
+        new AppDefinition { Id = "c", Name = "C", ProcessName = "procC", Path = @"C:\c.exe" },
     };
 
     [Fact]
-    public async Task LaunchSelectedAsync_SkipsAlreadyRunningApps()
+    public async Task LaunchAppsAsync_SkipsAlreadyRunningApps()
     {
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
         var delays = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delays.Add(seconds); return Task.CompletedTask; });
 
-        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
         Assert.Equal(new[] { "A", "C" }, result.Launched);
         Assert.Equal(new[] { @"C:\a.exe", @"C:\c.exe" }, gateway.StartedPaths);
     }
 
     [Fact]
-    public async Task LaunchSelectedAsync_SkipsUnselectedApps()
+    public async Task LaunchAppsAsync_PassesEachAppsArgumentsToTheGateway()
     {
         var apps = ThreeApps();
-        apps[1].Selected = false;
+        apps[0].Arguments = "--vr";
+        apps[1].Arguments = "";
         var gateway = new FakeProcessGateway();
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
 
-        var result = await service.LaunchSelectedAsync(apps, delaySeconds: 2);
+        await service.LaunchAppsAsync(apps, delaySeconds: 2);
 
-        Assert.Equal(new[] { "A", "C" }, result.Launched);
+        Assert.Equal(new[] { "--vr", "", "" }, gateway.StartedArguments);
     }
 
     [Fact]
-    public async Task LaunchSelectedAsync_DelaysAfterEachStart()
+    public async Task LaunchAppsAsync_DelaysAfterEachStart()
     {
         var gateway = new FakeProcessGateway();
         var delayCalls = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delayCalls.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delayCalls.Add(seconds); return Task.CompletedTask; });
 
-        await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 3);
+        await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 3);
 
         Assert.Equal(new[] { 3, 3, 3 }, delayCalls);
     }
 
     [Fact]
-    public async Task LaunchSelectedAsync_ContinuesBatchWhenOneAppFailsToStart()
+    public async Task LaunchAppsAsync_ContinuesBatchWhenOneAppFailsToStart()
     {
         // Spec contract: "one bad path doesn't block the batch".
         var gateway = new FakeProcessGateway();
         gateway.FailingPaths.Add(@"C:\b.exe");
         var delays = new List<int>();
-        var service = new ProcessService(gateway, seconds => { delays.Add(seconds); return Task.CompletedTask; });
+        var service = new ProcessService(gateway, (seconds, _) => { delays.Add(seconds); return Task.CompletedTask; });
 
-        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
         // The app that failed to start is not reported as launched...
         Assert.Equal(new[] { "A", "C" }, result.Launched);
@@ -94,13 +108,13 @@ public class ProcessServiceTests
     }
 
     [Fact]
-    public async Task LaunchSelectedAsync_AlreadyRunningAppsAreNeitherLaunchedNorFailed()
+    public async Task LaunchAppsAsync_AlreadyRunningAppsAreNeitherLaunchedNorFailed()
     {
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
 
-        var result = await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2);
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2);
 
         Assert.DoesNotContain("B", result.Launched);
         Assert.DoesNotContain("B", result.Failed);
@@ -121,20 +135,57 @@ public class ProcessServiceTests
     }
 
     [Fact]
-    public async Task LaunchSelectedAsync_ReportsProgressAcrossTheWholeSelection()
+    public async Task LaunchAppsAsync_ReportsProgressAcrossTheWholeBatch()
     {
-        // Progress tracks position through the selected batch (including apps
-        // skipped as already-running), not just successful launches — this is
-        // what drives the "Launching N of M..." UI during a staggered batch.
+        // Progress tracks position through the batch passed in (including apps
+        // skipped as already-running) — this is what drives the "Launching N of
+        // M..." UI during a staggered batch.
         var gateway = new FakeProcessGateway();
         gateway.RunningProcessNames.Add("procB");
-        var service = new ProcessService(gateway, _ => Task.CompletedTask);
+        var service = new ProcessService(gateway, (_, _) => Task.CompletedTask);
         var reported = new List<(int Current, int Total)>();
         var progress = new SyncProgress<(int, int)>(p => reported.Add(p));
 
-        await service.LaunchSelectedAsync(ThreeApps(), delaySeconds: 2, progress);
+        await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2, progress);
 
         Assert.Equal(new[] { (1, 3), (2, 3), (3, 3) }, reported);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_StopsLaunchingMoreAppsOnceCancelled()
+    {
+        // Simulates "Stop All" cancelling mid-batch: the stagger delay's caller
+        // (Stop All) requests cancellation while the delay after app A is pending.
+        var gateway = new FakeProcessGateway();
+        var cts = new CancellationTokenSource();
+        var service = new ProcessService(gateway, (_, _) =>
+        {
+            cts.Cancel();
+            return Task.CompletedTask;
+        });
+
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 2, cancellationToken: cts.Token);
+
+        // Only A got a Start() call — B and C were never reached once cancellation
+        // was observed at the top of the next loop iteration.
+        Assert.Equal(new[] { @"C:\a.exe" }, gateway.StartedPaths);
+        Assert.Equal(new[] { "A" }, result.Launched);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_CancellingDuringTheRealDelayReturnsWithoutThrowing()
+    {
+        // Exercises the real (non-test-double) Task.Delay-based default, confirming
+        // the OperationCanceledException it throws is caught rather than escaping
+        // LaunchAppsAsync as an unhandled exception.
+        var gateway = new FakeProcessGateway();
+        var service = new ProcessService(gateway);
+        var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        var result = await service.LaunchAppsAsync(ThreeApps(), delaySeconds: 5, cancellationToken: cts.Token);
+
+        Assert.Equal(new[] { "A" }, result.Launched);
     }
 
     [Fact]
@@ -152,28 +203,12 @@ public class ProcessServiceTests
     }
 
     [Fact]
-    public void StopAll_IgnoresSelectedState()
-    {
-        // Stop All targets everything actually running, independent of whether it's
-        // checked for the next launch batch.
-        var apps = ThreeApps();
-        apps[0].Selected = false;
-        var gateway = new FakeProcessGateway();
-        gateway.RunningProcessNames.Add("procA");
-        var service = new ProcessService(gateway);
-
-        var stopped = service.StopAll(apps);
-
-        Assert.Equal(new[] { "A" }, stopped);
-    }
-
-    [Fact]
     public void StopApp_KillsByProcessName()
     {
         var gateway = new FakeProcessGateway();
         var service = new ProcessService(gateway);
 
-        service.StopApp(new AppEntry { Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
+        service.StopApp(new AppDefinition { Id = "a", Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
 
         Assert.Contains("procA", gateway.KilledProcessNames);
     }
@@ -185,7 +220,7 @@ public class ProcessServiceTests
         gateway.RunningProcessNames.Add("procA");
         var service = new ProcessService(gateway);
 
-        var result = service.IsRunning(new AppEntry { Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
+        var result = service.IsRunning(new AppDefinition { Id = "a", Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
 
         Assert.True(result);
     }
@@ -196,7 +231,7 @@ public class ProcessServiceTests
         var gateway = new FakeProcessGateway();
         var service = new ProcessService(gateway);
 
-        service.StartApp(new AppEntry { Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
+        service.StartApp(new AppDefinition { Id = "a", Name = "A", ProcessName = "procA", Path = @"C:\a.exe" });
 
         Assert.Contains(@"C:\a.exe", gateway.StartedPaths);
     }
