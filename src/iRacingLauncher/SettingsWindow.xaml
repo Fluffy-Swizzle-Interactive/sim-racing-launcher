@@ -50,27 +50,31 @@
             </Setter>
         </Style>
 
-        <!-- Tabs: dimmed text, and a blue underline under the selected one. -->
+        <!-- Tabs, as in the mockup: dimmed text; the selected tab gets a filled
+             grey background with a blue underline. -->
         <Style TargetType="TabItem">
             <!-- Without this, tab content falls back to WPF's default black text. -->
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Grid Margin="0,0,4,0" Background="Transparent" Cursor="Hand">
-                            <ContentPresenter x:Name="Label" ContentSource="Header" Margin="14,8" Opacity="0.65"
+                        <Grid Margin="0,0,4,0" Cursor="Hand">
+                            <Border x:Name="Fill" CornerRadius="6,6,0,0" Background="Transparent" />
+                            <ContentPresenter x:Name="Label" ContentSource="Header" Margin="16,8,16,10" Opacity="0.65"
                                               TextElement.FontSize="14" />
-                            <Border x:Name="Underline" Height="3" CornerRadius="2" VerticalAlignment="Bottom" Margin="10,0"
-                                    Background="{DynamicResource TextFillColorPrimaryBrush}" Visibility="Hidden" />
+                            <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom"
+                                    Background="{StaticResource SelectBlue}" Visibility="Hidden" />
                         </Grid>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Label" Property="Opacity" Value="1" />
+                                <Setter TargetName="Fill" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                            </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Label" Property="Opacity" Value="1" />
                                 <Setter TargetName="Label" Property="TextElement.FontWeight" Value="SemiBold" />
+                                <Setter TargetName="Fill" Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
                                 <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Label" Property="Opacity" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
