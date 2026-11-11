@@ -129,10 +129,13 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <ui:TextBox Grid.Column="0" Text="{Binding SteamAppId, UpdateSourceTrigger=PropertyChanged}"
                                                          PlaceholderText="Steam App ID (optional, from the store page URL)" />
-                                                <CheckBox Grid.Column="1" Content="Launch in VR" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                <ui:Button Grid.Column="1" Content="Find ID" Icon="{ui:SymbolIcon Search20}" Margin="8,0,0,0"
+                                                           Click="FindSteamIdButton_Click" Tag="{Binding}" />
+                                                <CheckBox Grid.Column="2" Content="Launch in VR" Margin="8,0,0,0" VerticalAlignment="Center"
                                                           IsChecked="{Binding LaunchInVr}" IsEnabled="{Binding UsesSteam}" />
                                             </Grid>
                                             <TextBlock Text="Steam games: set launch options in Steam (Properties &gt; Launch Options)."

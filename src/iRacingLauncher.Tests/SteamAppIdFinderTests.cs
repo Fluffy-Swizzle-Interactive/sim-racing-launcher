@@ -1,0 +1,138 @@
+using System.IO;
+using iRacingLauncher.Services;
+using Xunit;
+
+namespace iRacingLauncher.Tests;
+
+/// <summary>
+/// Working out a Steam game's App ID from where its exe lives, by reading the
+/// appmanifest_*.acf files Steam keeps in each library's steamapps folder.
+/// </summary>
+public class SteamAppIdFinderTests : IDisposable
+{
+    private readonly string _library = Path.Combine(Path.GetTempPath(), $"SteamLib_{Guid.NewGuid():N}");
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_library)) Directory.Delete(_library, recursive: true);
+    }
+
+    private string SteamApps => Path.Combine(_library, "steamapps");
+
+    private string AddGame(string installDir, string relativeExe)
+    {
+        var exe = Path.Combine(SteamApps, "common", installDir, relativeExe);
+        Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
+        File.WriteAllText(exe, "");
+        return exe;
+    }
+
+    private void AddManifest(string fileId, string body) =>
+        File.WriteAllText(Path.Combine(SteamApps, $"appmanifest_{fileId}.acf"), body);
+
+    private static string Manifest(string appId, string installDir) => $$"""
+        "AppState"
+        {
+        	"appid"		"{{appId}}"
+        	"Universe"		"1"
+        	"name"		"Some Game"
+        	"installdir"		"{{installDir}}"
+        	"InstalledDepots"
+        	{
+        		"2399421"
+        		{
+        			"manifest"		"123"
+        		}
+        	}
+        }
+        """;
+
+    [Fact]
+    public void FindAppId_ExeInsideSteamLibrary_ReturnsAppId()
+    {
+        var exe = AddGame("Le Mans Ultimate", "Le Mans Ultimate.exe");
+        AddManifest("2399420", Manifest("2399420", "Le Mans Ultimate"));
+
+        Assert.Equal("2399420", SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_PicksMatchingManifestAmongSeveral()
+    {
+        var exe = AddGame("assettocorsa", "AssettoCorsa.exe");
+        AddManifest("2399420", Manifest("2399420", "Le Mans Ultimate"));
+        AddManifest("244210", Manifest("244210", "assettocorsa"));
+
+        Assert.Equal("244210", SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_ExeInNestedSubfolder_StillMatches()
+    {
+        var exe = AddGame("Game", Path.Combine("bin", "x64", "game.exe"));
+        AddManifest("111", Manifest("111", "Game"));
+
+        Assert.Equal("111", SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_MatchesInstallDirCaseInsensitively()
+    {
+        var exe = AddGame("Le Mans Ultimate", "LMU.exe");
+        AddManifest("2399420", Manifest("2399420", "le mans ultimate"));
+
+        Assert.Equal("2399420", SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_PathOutsideSteam_ReturnsNull()
+    {
+        Assert.Null(SteamAppIdFinder.FindAppId(@"C:\iRacing\ui\iRacingUI.exe"));
+    }
+
+    [Fact]
+    public void FindAppId_ManifestMissingAppId_ReturnsNull()
+    {
+        var exe = AddGame("Game", "game.exe");
+        AddManifest("111", "\"AppState\"\n{\n\t\"installdir\"\t\t\"Game\"\n}\n");
+
+        Assert.Null(SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_GarbageManifest_ReturnsNull()
+    {
+        var exe = AddGame("Game", "game.exe");
+        AddManifest("111", "\0\0 not a manifest {{{");
+
+        Assert.Null(SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Fact]
+    public void FindAppId_NonNumericAppIdInManifest_ReturnsNull()
+    {
+        var exe = AddGame("Game", "game.exe");
+        AddManifest("111", Manifest("111/../x", "Game"));
+
+        Assert.Null(SteamAppIdFinder.FindAppId(exe));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not a path <>|")]
+    public void FindAppId_BlankOrBadPath_ReturnsNull(string path)
+    {
+        Assert.Null(SteamAppIdFinder.FindAppId(path));
+    }
+
+    [Theory]
+    [InlineData("", "", true)]
+    [InlineData("  ", "", true)]
+    [InlineData("", "--vr", false)]
+    [InlineData("2399420", "", false)]
+    public void ShouldAutoFill(string steamAppId, string arguments, bool expected)
+    {
+        Assert.Equal(expected, SteamAppIdFinder.ShouldAutoFill(steamAppId, arguments));
+    }
+}

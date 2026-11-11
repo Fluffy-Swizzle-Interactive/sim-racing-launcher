@@ -34,7 +34,33 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
     public string Path
     {
         get => Model.Path;
-        set { Model.Path = value; OnPropertyChanged(); }
+        set
+        {
+            Model.Path = value;
+            OnPropertyChanged();
+            // Only reacts to a path the user just set (Browse, Auto-Find, typing);
+            // the constructor goes through Model, so opening Settings changes nothing.
+            if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments)
+                && SteamAppIdFinder.FindAppId(value) is { } id)
+            {
+                SteamAppId = id;
+                FindStatus = $"Steam game detected (App ID {id}). It will launch through Steam.";
+            }
+        }
+    }
+
+    /// <summary>The Find ID button: fills the App ID from the path even when auto-fill held back.</summary>
+    public void FindSteamAppId()
+    {
+        if (SteamAppIdFinder.FindAppId(Path) is { } id)
+        {
+            SteamAppId = id;
+            FindStatus = "Found Steam App ID. Review and Save to confirm.";
+        }
+        else
+        {
+            FindStatus = "Couldn't find a Steam App ID for this path. Copy it from the game's store page URL.";
+        }
     }
 
     public string Arguments
@@ -397,6 +423,14 @@ public partial class SettingsWindow : FluentWindow
         {
             row.Path = dialog.FileName;
             row.FindStatus = string.Empty;
+        }
+    }
+
+    private void FindSteamIdButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is AppEditRowViewModel row)
+        {
+            row.FindSteamAppId();
         }
     }
 
