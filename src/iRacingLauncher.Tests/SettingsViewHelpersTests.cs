@@ -29,6 +29,31 @@ public class SettingsViewHelpersTests
         Assert.Equal(expected, row.ShowVrTag);
     }
 
+    [Theory]
+    [InlineData("ACC", "Apps launched for ACC, in order")]
+    [InlineData("  iRacing ", "Apps launched for iRacing, in order")]
+    [InlineData("", "Apps launched for this game, in order")]
+    [InlineData("   ", "Apps launched for this game, in order")]
+    public void ChecklistHeading_NeverShowsAnEmptyName(string name, string expected)
+    {
+        var row = new ProfileEditRowViewModel(new Profile { Name = name });
+
+        Assert.Equal(expected, row.ChecklistHeading);
+    }
+
+    [Fact]
+    public void ChecklistHeading_UpdatesWhenRenamed()
+    {
+        var row = new ProfileEditRowViewModel(new Profile { Name = "ACC" });
+        var raised = new List<string?>();
+        row.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        row.Name = "LMU";
+
+        Assert.Contains(nameof(ProfileEditRowViewModel.ChecklistHeading), raised);
+        Assert.Equal("Apps launched for LMU, in order", row.ChecklistHeading);
+    }
+
     [Fact]
     public void IsSearching_IsPerAppAndRaisesChange()
     {

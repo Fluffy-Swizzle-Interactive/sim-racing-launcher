@@ -92,7 +92,7 @@ public partial class MainWindow : FluentWindow
     /// <summary>
     /// Only Selected apps are shown at all, so unchecking one here must remove its
     /// row immediately rather than leave an unchecked row behind — the app stays in
-    /// the profile's AppRefs with Selected=false; Settings' Selected Apps checklist
+    /// the profile's AppRefs with Selected=false; the Games tab's app checklist in Settings
     /// is the way back onto this list.
     /// </summary>
     private void AppRow_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -189,7 +189,7 @@ public partial class MainWindow : FluentWindow
             var result = await _processService.LaunchAppsAsync(selectedApps, _config.LaunchDelaySeconds, progress, cts.Token);
             if (result.Failed.Count > 0 && ReferenceEquals(_launchCts, cts))
             {
-                LaunchInfoBar.Message = $"Couldn't start: {string.Join(", ", result.Failed)}. Check their paths in Settings.";
+                LaunchInfoBar.Message = LaunchMessages.CouldNotStart(result.Failed, selectedApps);
                 LaunchInfoBar.IsOpen = true;
             }
         }

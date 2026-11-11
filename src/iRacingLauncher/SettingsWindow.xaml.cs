@@ -162,8 +162,18 @@ public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChan
     public string Name
     {
         get => Model.Name;
-        set { Model.Name = value; OnPropertyChanged(); }
+        set
+        {
+            Model.Name = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ChecklistHeading));
+        }
     }
+
+    /// <summary>The heading above this game's app checklist; never "for , in order".</summary>
+    public string ChecklistHeading => string.IsNullOrWhiteSpace(Name)
+        ? "Apps launched for this game, in order"
+        : $"Apps launched for {Name.Trim()}, in order";
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null) =>
@@ -171,7 +181,7 @@ public class ProfileEditRowViewModel : System.ComponentModel.INotifyPropertyChan
 }
 
 /// <summary>
-/// One row in the "Selected Apps" checklist for whichever profile is currently
+/// One row in the Games tab's app checklist for whichever game (profile) is currently
 /// being edited. An app the profile doesn't reference yet (no ProfileAppEntry in
 /// its AppRefs) still gets a row here — unchecked, with a null Entry — so the user
 /// has a way to enable it. Checking that row lazily creates a real ProfileAppEntry
@@ -247,9 +257,9 @@ public partial class SettingsWindow : FluentWindow
     private readonly string _originalTheme;
 
     /// <summary>
-    /// The profile whose apps the "Selected Apps" card is currently showing/editing
-    /// (checked/unchecked against the shared "Apps" registry card). Tracked by
-    /// reference (not name) so renaming it in the Profiles list doesn't lose track
+    /// The game (profile) selected on the Games tab, whose app checklist is showing
+    /// (ticked/unticked against the shared app list on the Apps tab). Tracked by
+    /// reference (not name) so renaming it in the Games list doesn't lose track
     /// of it.
     /// </summary>
     private Profile _currentEditingProfile;
@@ -527,6 +537,7 @@ public partial class SettingsWindow : FluentWindow
         _workingApps.Remove(row.Model);
         _appEditRows.Remove(row);
         AppList.SelectedIndex = ListSelection.AfterRemoval(index, _appEditRows.Count);
+        FocusSelectedApp();
 
         // Deleting an app from the registry cascades to every profile referencing it.
         foreach (var profile in _workingProfiles)
@@ -534,6 +545,27 @@ public partial class SettingsWindow : FluentWindow
             profile.AppRefs.RemoveAll(r => r.AppId == row.Model.Id);
         }
         LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    /// <summary>
+    /// Deleting an app removes the Delete button that had keyboard focus along with
+    /// the app's details, leaving focus nowhere. Move it to the newly selected app in
+    /// the list (or the list itself when it's now empty), after the list has updated.
+    /// </summary>
+    private void FocusSelectedApp()
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (AppList.SelectedItem is not null
+                && AppList.ItemContainerGenerator.ContainerFromItem(AppList.SelectedItem) is System.Windows.Controls.ListBoxItem item)
+            {
+                item.Focus();
+            }
+            else
+            {
+                AppList.Focus();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -609,6 +641,13 @@ public partial class SettingsWindow : FluentWindow
             SettingsTabs.SelectedItem = GamesTab;
             GameList.SelectedItem = gameRow;
             GameList.ScrollIntoView(gameRow);
+            // Every game problem is about its name, so put the cursor there. Deferred
+            // until the Games tab has been laid out, or the box can't take focus yet.
+            Dispatcher.BeginInvoke(() =>
+            {
+                GameNameBox.Focus();
+                GameNameBox.SelectAll();
+            }, System.Windows.Threading.DispatcherPriority.Input);
         }
         else if (problem.App is not null
                  && _appEditRows.FirstOrDefault(r => ReferenceEquals(r.Model, problem.App)) is { } appRow)

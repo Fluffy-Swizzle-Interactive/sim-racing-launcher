@@ -31,7 +31,7 @@ Extended off a simple launcher SwizzleShizzle made.
   selected for the active profile. Uncheck one to drop it from the launch
   set for **Launch Selected**; unchecking removes its row immediately
   rather than leaving it there unchecked, since it stays selected for every
-  other profile that uses it. Bring it back onto this list any time by
+  other game that uses it. Bring it back onto this list any time by
   ticking it for that game on the **Games** tab in Settings. An app whose path isn't
   valid, or one that's already running, has its checkbox (and per-row
   Start) grayed out, so you can't uncheck it from here directly — stop a
@@ -50,19 +50,19 @@ Extended off a simple launcher SwizzleShizzle made.
     launch that way. Pick one to edit its name, process name, path, Steam
     App ID and launch arguments. Deleting an app removes it from every game;
     to drop it from just one game, untick it on the **Games** tab instead.
-  - **General**: launch delay, startup, close to tray and theme.
-  - If something stops Settings from saving, it switches to the tab and
-    the game or app with the problem.
-  - **Auto-Find** — searches common install locations (Program Files,
+    **Auto-Find** searches common install locations (Program Files,
     Program Files (x86), LocalAppData, ProgramData, Start Menu shortcuts)
     for an app's executable, so you don't have to know the exact path.
-  - Configurable delay between staggered launches.
-  - Optional "launch at Windows startup."
-  - Optional "close to tray" — off by default. When on, closing the main
-    window (the X button) hides it to the tray instead of exiting; use the
-    tray icon's **Exit** to actually quit. When off, closing the window
-    behaves like a normal window and exits the app.
-  - Light/dark theme.
+  - **General**:
+    - Delay between staggered launches.
+    - Optional "launch at Windows startup".
+    - Optional "close to tray", off by default. When on, closing the main
+      window (the X button) hides it to the tray instead of exiting; use the
+      tray icon's **Exit** to actually quit. When off, closing the window
+      exits the app as normal.
+    - Light/dark theme.
+  - If something stops Settings from saving, it switches to the tab and
+    the game or app with the problem.
 - **System tray** (when "close to tray" is enabled) — the window hides to
   the tray instead of exiting, with a quick-access menu (Show / Launch
   Selected / Exit). Tray **Exit** always fully quits, regardless of the
