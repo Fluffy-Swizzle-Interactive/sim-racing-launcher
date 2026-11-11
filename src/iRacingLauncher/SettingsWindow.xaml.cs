@@ -94,17 +94,29 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
             Model.SteamAppId = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(UsesSteam));
+            OnPropertyChanged(nameof(ShowVrTag));
         }
     }
 
     public bool LaunchInVr
     {
         get => Model.LaunchInVr;
-        set { Model.LaunchInVr = value; OnPropertyChanged(); }
+        set
+        {
+            Model.LaunchInVr = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowVrTag));
+        }
     }
 
-    /// <summary>Drives the VR checkbox, the disabled Arguments box and the Steam hint.</summary>
+    /// <summary>
+    /// Drives the VR checkbox, the disabled Arguments box and the Steam hint, and is
+    /// the Steam tag in the Apps list.
+    /// </summary>
     public bool UsesSteam => SteamLaunch.UsesSteam(Model);
+
+    /// <summary>The VR tag in the Apps list: only when the app really launches in VR.</summary>
+    public bool ShowVrTag => UsesSteam && LaunchInVr;
 
     private string _findStatus = string.Empty;
     public string FindStatus
