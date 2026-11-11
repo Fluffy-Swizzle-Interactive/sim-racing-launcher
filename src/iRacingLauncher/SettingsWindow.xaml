@@ -11,11 +11,6 @@
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
-        <!-- Blue is only for the selected cell and the Save button; everything else
-             keeps the app's normal grey look. -->
-        <SolidColorBrush x:Key="SelectBlue" Color="#4CC2FF" />
-        <SolidColorBrush x:Key="SelectBlueHover" Color="#6BCEFF" />
-        <SolidColorBrush x:Key="SelectBluePressed" Color="#3AA8E0" />
 
         <!-- Each game/app is its own cell: a rounded tile with a gap below it,
              and a blue bar plus blue tint when selected. -->
