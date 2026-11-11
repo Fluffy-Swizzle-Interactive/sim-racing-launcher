@@ -494,50 +494,12 @@ public partial class SettingsWindow : FluentWindow
         ApplicationThemeManager.Apply(theme);
     }
 
-    /// <summary>
-    /// Blocks a save that would leave the profile list ambiguous. The active profile
-    /// is tracked by name (<see cref="LauncherConfig.ActiveProfile"/> looks it up
-    /// with FirstOrDefault), so two profiles sharing a name makes the second one
-    /// permanently unreachable — picking it in the main window's dropdown silently
-    /// activates the first instead. A blank name is just as bad: it shows as an
-    /// empty row in that dropdown with no way to tell what it is.
-    /// </summary>
-    /// <returns>An error to show the user, or null when the names are usable.</returns>
-    private string? ValidateProfileNames()
-    {
-        if (_workingProfiles.Any(p => string.IsNullOrWhiteSpace(p.Name)))
-        {
-            return "Every profile needs a name. Give the blank one a name, or delete it.";
-        }
-
-        var duplicate = _workingProfiles
-            .GroupBy(p => p.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault(g => g.Count() > 1);
-
-        return duplicate is null
-            ? null
-            : $"Two profiles are both named \"{duplicate.Key}\". Profile names have to be unique.";
-    }
-
-    /// <summary>
-    /// A Steam App ID goes into a steam:// URL, so it must be just the number. A
-    /// pasted store URL is the likely mistake, hence the example in the message.
-    /// </summary>
-    /// <returns>An error to show the user, or null when every ID is blank or valid.</returns>
-    private string? ValidateSteamAppIds()
-    {
-        var bad = _workingApps.FirstOrDefault(a => SteamLaunch.UsesSteam(a) && !SteamLaunch.IsValidAppId(a.SteamAppId));
-        return bad is null
-            ? null
-            : $"The Steam App ID for \"{bad.Name}\" should be just the number, like 2399420.";
-    }
-
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        var validationError = ValidateProfileNames() ?? ValidateSteamAppIds();
-        if (validationError is not null)
+        var problem = SettingsValidation.Validate(_workingProfiles, _workingApps);
+        if (problem is not null)
         {
-            ValidationInfoBar.Message = validationError;
+            ValidationInfoBar.Message = problem.Message;
             ValidationInfoBar.IsOpen = true;
             return;
         }
