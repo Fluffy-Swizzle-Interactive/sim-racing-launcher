@@ -24,6 +24,17 @@ public class FakeProcessGateway : IProcessGateway
     }
 
     public void Kill(string processName) => KilledProcessNames.Add(processName);
+
+    public List<string> OpenedUrls { get; } = new();
+
+    /// <summary>When true, OpenSteamUrl() reports failure, simulating Steam not installed.</summary>
+    public bool FailOpenUrls { get; set; }
+
+    public bool OpenSteamUrl(string url)
+    {
+        OpenedUrls.Add(url);
+        return !FailOpenUrls;
+    }
 }
 
 public class ProcessServiceTests

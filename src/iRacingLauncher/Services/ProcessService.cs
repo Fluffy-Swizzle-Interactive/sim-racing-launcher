@@ -25,7 +25,22 @@ public class ProcessService
     /// callers refresh statuses afterwards, which correctly leaves a failed launch
     /// showing as "Path not found" / "Not running".
     /// </summary>
-    public void StartApp(AppDefinition app) => _gateway.Start(app.Path, app.Arguments);
+    public void StartApp(AppDefinition app) => Launch(app);
+
+    /// <summary>
+    /// Starts one app: through Steam when it has a Steam App ID (its exe path and
+    /// arguments are then not used), otherwise by its exe path and arguments.
+    /// An invalid App ID, which only a hand-edited config can hold, counts as a
+    /// failed launch rather than throwing out of a batch.
+    /// </summary>
+    private bool Launch(AppDefinition app)
+    {
+        if (!SteamLaunch.UsesSteam(app))
+        {
+            return _gateway.Start(app.Path, app.Arguments);
+        }
+        return SteamLaunch.IsValidAppId(app.SteamAppId) && _gateway.OpenSteamUrl(SteamLaunch.BuildUrl(app));
+    }
 
     public void StopApp(AppDefinition app) => _gateway.Kill(app.ProcessName);
 
@@ -90,7 +105,7 @@ public class ProcessService
             }
             // A bad path must not block the batch: skip the bookkeeping and the
             // stagger delay for anything that failed to start, but keep going.
-            if (!_gateway.Start(app.Path, app.Arguments))
+            if (!Launch(app))
             {
                 failed.Add(app.Name);
                 continue;

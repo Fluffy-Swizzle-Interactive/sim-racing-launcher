@@ -54,6 +54,31 @@ public class Win32ProcessGateway : IProcessGateway
         }
     }
 
+    public bool OpenSteamUrl(string url)
+    {
+        // Shell-executing an arbitrary string would run any file or URL handler, so
+        // only steam:// is ever let through.
+        if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // No steam:// handler registered, i.e. Steam isn't installed.
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
     public void Kill(string processName)
     {
         foreach (var process in Process.GetProcessesByName(processName))

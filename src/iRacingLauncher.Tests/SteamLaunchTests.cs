@@ -143,4 +143,84 @@ public class SteamLaunchTests
         Assert.False(SteamLaunch.IsLaunchable(SteamApp("", path: @"C:\missing.exe"), _ => false));
         Assert.True(SteamLaunch.IsLaunchable(SteamApp("", path: @"C:\there.exe"), p => p == @"C:\there.exe"));
     }
+
+    // ---- Task 3: routing through the gateway ----
+
+    private static ProcessService NoDelayService(FakeProcessGateway gateway) =>
+        new(gateway, (_, _) => Task.CompletedTask);
+
+    [Fact]
+    public void StartApp_SteamApp_OpensSteamUrlAndNotPath()
+    {
+        var gateway = new FakeProcessGateway();
+        var app = SteamApp("2399420", vr: true, path: @"C:\lmu.exe");
+        app.Arguments = "--ignored";
+
+        NoDelayService(gateway).StartApp(app);
+
+        Assert.Equal(new[] { "steam://launch/2399420/vr" }, gateway.OpenedUrls);
+        Assert.Empty(gateway.StartedPaths);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_MixesSteamAndExeApps()
+    {
+        var gateway = new FakeProcessGateway();
+        var exe = new AppDefinition { Id = "c", Name = "Crew Chief", ProcessName = "CrewChiefV4", Path = @"C:\cc.exe", Arguments = "-x" };
+        var steam = SteamApp("2399420");
+
+        var result = await NoDelayService(gateway).LaunchAppsAsync(new[] { exe, steam }, delaySeconds: 0);
+
+        Assert.Equal(new[] { "Crew Chief", "LMU" }, result.Launched);
+        Assert.Equal(new[] { @"C:\cc.exe" }, gateway.StartedPaths);
+        Assert.Equal(new[] { "-x" }, gateway.StartedArguments);
+        Assert.Equal(new[] { "steam://rungameid/2399420" }, gateway.OpenedUrls);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_SteamOpenFails_ReportsFailed()
+    {
+        var gateway = new FakeProcessGateway { FailOpenUrls = true };
+        var delays = 0;
+        var service = new ProcessService(gateway, (_, _) => { delays++; return Task.CompletedTask; });
+
+        var result = await service.LaunchAppsAsync(new[] { SteamApp("2399420") }, delaySeconds: 2);
+
+        Assert.Equal(new[] { "LMU" }, result.Failed);
+        Assert.Empty(result.Launched);
+        Assert.Equal(0, delays);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_SteamAppAlreadyRunning_IsSkipped()
+    {
+        var gateway = new FakeProcessGateway();
+        gateway.RunningProcessNames.Add("Le Mans Ultimate");
+
+        await NoDelayService(gateway).LaunchAppsAsync(new[] { SteamApp("2399420") }, delaySeconds: 0);
+
+        Assert.Empty(gateway.OpenedUrls);
+    }
+
+    [Fact]
+    public async Task LaunchAppsAsync_InvalidSteamId_ReportsFailedInsteadOfThrowing()
+    {
+        // A hand-edited config.json can hold an ID the Settings validation never saw.
+        var gateway = new FakeProcessGateway();
+
+        var result = await NoDelayService(gateway).LaunchAppsAsync(new[] { SteamApp("abc") }, delaySeconds: 0);
+
+        Assert.Equal(new[] { "LMU" }, result.Failed);
+        Assert.Empty(gateway.OpenedUrls);
+        Assert.Empty(gateway.StartedPaths);
+    }
+
+    [Theory]
+    [InlineData("https://example.com")]
+    [InlineData(@"C:\Windows\notepad.exe")]
+    [InlineData("")]
+    public void Win32Gateway_OpenSteamUrl_RejectsOtherSchemes(string url)
+    {
+        Assert.False(new Win32ProcessGateway().OpenSteamUrl(url));
+    }
 }

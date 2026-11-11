@@ -12,5 +12,13 @@ public interface IProcessGateway
     /// an unlaunchable path.
     /// </summary>
     bool Start(string exePath, string arguments);
+
+    /// <summary>
+    /// Hands a steam:// URL to Steam (e.g. "steam://launch/2399420/vr"). Returns
+    /// false, without launching anything, for any URL that isn't steam://, and
+    /// false when it can't be opened (Steam not installed, etc.). Must not throw.
+    /// </summary>
+    bool OpenSteamUrl(string url);
+
     void Kill(string processName);
 }
