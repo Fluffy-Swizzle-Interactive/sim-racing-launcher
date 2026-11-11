@@ -19,7 +19,7 @@ public partial class App : Application
         var settingsService = new SettingsService(SettingsService.GetDefaultConfigPath());
         var config = settingsService.Load();
 
-        AppTheme.Apply(
+        ApplicationThemeManager.Apply(
             config.Theme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light);
 
         var processService = new ProcessService(new Win32ProcessGateway());

@@ -10,6 +10,12 @@
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
+        <!-- Blue is only for the selected cell and the Save button; everything else
+             keeps the app's normal grey look. -->
+        <SolidColorBrush x:Key="SelectBlue" Color="#4CC2FF" />
+        <SolidColorBrush x:Key="SelectBlueHover" Color="#6BCEFF" />
+        <SolidColorBrush x:Key="SelectBluePressed" Color="#3AA8E0" />
+
         <!-- Each game/app is its own cell: a rounded tile with a gap below it,
              and a blue bar plus blue tint when selected. -->
         <Style x:Key="CellItem" TargetType="ListBoxItem">
@@ -24,9 +30,9 @@
                                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" />
                             <Border x:Name="Tint" CornerRadius="6" Opacity="0"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    Background="{StaticResource SelectBlue}" />
                             <Border x:Name="Bar" Width="3" CornerRadius="2" Margin="0,7" HorizontalAlignment="Left"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Collapsed" />
+                                    Background="{StaticResource SelectBlue}" Visibility="Collapsed" />
                             <ContentPresenter Margin="14,6,8,6" VerticalAlignment="Center" />
                         </Grid>
                         <ControlTemplate.Triggers>
@@ -52,7 +58,7 @@
                             <ContentPresenter x:Name="Label" ContentSource="Header" Margin="14,8" Opacity="0.65"
                                               TextElement.FontSize="14" />
                             <Border x:Name="Underline" Height="3" CornerRadius="2" VerticalAlignment="Bottom" Margin="10,0"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
+                                    Background="{DynamicResource TextFillColorPrimaryBrush}" Visibility="Hidden" />
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
@@ -326,7 +332,9 @@
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
             <ui:Button Content="Cancel" Margin="0,0,8,0" Click="CancelButton_Click" />
-            <ui:Button Content="Save" Appearance="Primary" Click="SaveButton_Click" MinWidth="80" />
+            <ui:Button Content="Save" Click="SaveButton_Click" MinWidth="80" Foreground="Black"
+                       Background="{StaticResource SelectBlue}" MouseOverBackground="{StaticResource SelectBlueHover}"
+                       PressedBackground="{StaticResource SelectBluePressed}" />
         </StackPanel>
     </Grid>
 </ui:FluentWindow>

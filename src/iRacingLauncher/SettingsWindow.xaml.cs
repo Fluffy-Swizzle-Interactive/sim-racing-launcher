@@ -595,7 +595,7 @@ public partial class SettingsWindow : FluentWindow
     private void ThemeToggle_Changed(object sender, RoutedEventArgs e)
     {
         var theme = ThemeToggle.IsChecked == true ? ApplicationTheme.Dark : ApplicationTheme.Light;
-        AppTheme.Apply(theme);
+        ApplicationThemeManager.Apply(theme);
     }
 
     /// <summary>
@@ -682,7 +682,7 @@ public partial class SettingsWindow : FluentWindow
         // persisted _config.Theme disagree until the app restarts.
         if (DialogResult != true)
         {
-            AppTheme.Apply(
+            ApplicationThemeManager.Apply(
                 _originalTheme == "Dark" ? ApplicationTheme.Dark : ApplicationTheme.Light);
         }
         ApplicationThemeManager.Changed -= OnAppThemeChanged;
