@@ -101,10 +101,21 @@ public static class SteamAppIdFinder
     }
 
     /// <summary>
-    /// Whether picking a path should fill in the App ID by itself: only when the box
-    /// is empty, and only when the app has no launch arguments, because a Steam
-    /// launch ignores them and would quietly break that setup.
+    /// Third-party launchers people install inside a game's Steam folder. Launching
+    /// through Steam would start the game's own exe and skip them, so picking one
+    /// never auto-fills (Find ID still works if someone wants Steam anyway).
     /// </summary>
-    public static bool ShouldAutoFill(string steamAppId, string arguments) =>
-        string.IsNullOrWhiteSpace(steamAppId) && string.IsNullOrWhiteSpace(arguments);
+    private static readonly string[] ThirdPartyLaunchers = { "Content Manager" };
+
+    /// <summary>
+    /// Whether picking <paramref name="exePath"/> should fill in the App ID by itself:
+    /// only when the box is empty, only when the app has no launch arguments (a Steam
+    /// launch ignores them and would quietly break that setup), and never for a
+    /// third-party launcher such as Assetto Corsa's Content Manager.
+    /// </summary>
+    public static bool ShouldAutoFill(string steamAppId, string arguments, string exePath) =>
+        string.IsNullOrWhiteSpace(steamAppId)
+        && string.IsNullOrWhiteSpace(arguments)
+        && !Array.Exists(ThirdPartyLaunchers, name =>
+            string.Equals(Path.GetFileNameWithoutExtension(exePath ?? ""), name, StringComparison.OrdinalIgnoreCase));
 }

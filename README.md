@@ -90,7 +90,8 @@ Extended off a simple launcher SwizzleShizzle made.
    **Steam games (and VR):** if the path you pick is inside a Steam
    library, the **Steam App ID** box fills in by itself and the game will
    launch through Steam. (It's left alone if the app already has launch
-   arguments; press **Find ID** to fill it anyway.) You can also type the
+   arguments, or if you picked Content Manager for Assetto Corsa, which
+   keeps launching directly; press **Find ID** to fill it anyway.) You can also type the
    ID yourself: it's the number in the game's Steam store URL, like
    `2399420` for Le Mans Ultimate. Then:
    - Tick **Launch in VR** to start the game in Steam's VR mode.

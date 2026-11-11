@@ -177,13 +177,57 @@ public class SteamAppIdFinderTests : IDisposable
         Assert.Equal("Found — review and Save to confirm.", row.FindStatus);
     }
 
+    private const string AcExe = @"F:\SteamLibrary2\steamapps\common\assettocorsa\AssettoCorsa.exe";
+
     [Theory]
-    [InlineData("", "", true)]
-    [InlineData("  ", "", true)]
-    [InlineData("", "--vr", false)]
-    [InlineData("2399420", "", false)]
-    public void ShouldAutoFill(string steamAppId, string arguments, bool expected)
+    [InlineData("", "", AcExe, true)]
+    [InlineData("  ", "", AcExe, true)]
+    [InlineData("", "--vr", AcExe, false)]
+    [InlineData("2399420", "", AcExe, false)]
+    [InlineData("", "", @"F:\SteamLibrary2\steamapps\common\assettocorsa\acs.exe", true)]
+    [InlineData("", "", @"F:\SteamLibrary2\steamapps\common\assettocorsa\Content Manager.exe", false)]
+    [InlineData("", "", @"F:\SteamLibrary2\steamapps\common\assettocorsa\content manager.EXE", false)]
+    public void ShouldAutoFill(string steamAppId, string arguments, string exePath, bool expected)
     {
-        Assert.Equal(expected, SteamAppIdFinder.ShouldAutoFill(steamAppId, arguments));
+        Assert.Equal(expected, SteamAppIdFinder.ShouldAutoFill(steamAppId, arguments, exePath));
+    }
+
+    [Fact]
+    public void Settings_BrowseToContentManagerInsideAcFolder_LeavesIdBlank()
+    {
+        // Content Manager is often installed inside AC's Steam folder. Launching
+        // through Steam would bypass it, so it must keep launching directly.
+        var cm = AddGame("assettocorsa", "Content Manager.exe");
+        AddManifest("244210", Manifest("244210", "assettocorsa"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+
+        row.SetPathFromBrowse(cm);
+
+        Assert.Equal("", row.SteamAppId);
+    }
+
+    [Fact]
+    public void Settings_FindIdOnContentManager_StillFillsWhenAskedExplicitly()
+    {
+        var cm = AddGame("assettocorsa", "Content Manager.exe");
+        AddManifest("244210", Manifest("244210", "assettocorsa"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+        row.SetPathFromBrowse(cm);
+
+        row.FindSteamAppId();
+
+        Assert.Equal("244210", row.SteamAppId);
+    }
+
+    [Fact]
+    public void Settings_BrowseToNormalAcExe_AutoFills()
+    {
+        var ac = AddGame("assettocorsa", "AssettoCorsa.exe");
+        AddManifest("244210", Manifest("244210", "assettocorsa"));
+        var row = new AppEditRowViewModel(new iRacingLauncher.Models.AppDefinition());
+
+        row.SetPathFromBrowse(ac);
+
+        Assert.Equal("244210", row.SteamAppId);
     }
 }

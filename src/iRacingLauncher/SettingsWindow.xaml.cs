@@ -40,7 +40,7 @@ public class AppEditRowViewModel : System.ComponentModel.INotifyPropertyChanged
             OnPropertyChanged();
             // Only reacts to a path the user just set (Browse, Auto-Find, typing);
             // the constructor goes through Model, so opening Settings changes nothing.
-            if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments)
+            if (SteamAppIdFinder.ShouldAutoFill(SteamAppId, Arguments, value)
                 && SteamAppIdFinder.FindAppId(value) is { } id)
             {
                 SteamAppId = id;
