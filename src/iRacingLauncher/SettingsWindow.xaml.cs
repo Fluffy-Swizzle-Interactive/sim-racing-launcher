@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using System.Windows;
 using iRacingLauncher.Models;
 using iRacingLauncher.Services;
+using iRacingLauncher.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -264,7 +265,7 @@ public partial class SettingsWindow : FluentWindow
         {
             _profileEditRows.Add(new ProfileEditRowViewModel(profile));
         }
-        ProfileEditList.ItemsSource = _profileEditRows;
+        GameList.ItemsSource = _profileEditRows;
 
         foreach (var app in _workingApps)
         {
@@ -276,6 +277,9 @@ public partial class SettingsWindow : FluentWindow
         _workingActiveProfile = _workingProfiles.FirstOrDefault(p => p.Name == _config.ActiveProfileName) ?? _workingProfiles[0];
         _currentEditingProfile = _workingActiveProfile;
         LoadProfileAppRowsFromCurrentProfile();
+        // Open on the active game. Selecting a game only picks which one is being
+        // edited; it never changes _workingActiveProfile.
+        GameList.SelectedItem = RowFor(_workingActiveProfile);
 
         // Plain ui:TextBox, not ui:NumberBox: NumberBox has a real WPF-UI rendering bug
         // where text set before the control's first layout pass never paints (root-caused
@@ -317,8 +321,30 @@ public partial class SettingsWindow : FluentWindow
             if (referencedAppIds.Contains(app.Id)) continue;
             _profileAppRows.Add(new ProfileAppSelectionRowViewModel(app, entry: null, _currentEditingProfile));
         }
+    }
 
-        EditingProfileLabel.Text = $"Selected for: {_currentEditingProfile.Name}";
+    private ProfileEditRowViewModel? RowFor(Profile profile) =>
+        _profileEditRows.FirstOrDefault(r => ReferenceEquals(r.Model, profile));
+
+    private void GameList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Null while a removed row's neighbour is being picked; the follow-up
+        // selection does the work.
+        if (GameList.SelectedItem is not ProfileEditRowViewModel row) return;
+        _currentEditingProfile = row.Model;
+        LoadProfileAppRowsFromCurrentProfile();
+    }
+
+    private void SettingsTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // SelectionChanged bubbles up from the lists inside the tabs; only react to
+        // the tab strip itself. Coming back to Games reloads the checklist so app
+        // renames and new apps from the Apps tab show up.
+        if (!ReferenceEquals(e.OriginalSource, SettingsTabs)) return;
+        if (ReferenceEquals(SettingsTabs.SelectedItem, GamesTab))
+        {
+            LoadProfileAppRowsFromCurrentProfile();
+        }
     }
 
     private void AddProfileButton_Click(object sender, RoutedEventArgs e)
@@ -327,14 +353,16 @@ public partial class SettingsWindow : FluentWindow
         // a newly-added app being selected in every existing profile.
         var profile = new Profile
         {
-            Name = "New Profile",
+            Name = "New game",
             AppRefs = _workingApps.Select(a => new ProfileAppEntry { AppId = a.Id, Selected = true }).ToList(),
         };
         _workingProfiles.Add(profile);
-        _profileEditRows.Add(new ProfileEditRowViewModel(profile));
-
-        _currentEditingProfile = profile;
-        LoadProfileAppRowsFromCurrentProfile();
+        var row = new ProfileEditRowViewModel(profile);
+        _profileEditRows.Add(row);
+        GameList.SelectedItem = row;
+        GameList.ScrollIntoView(row);
+        GameNameBox.Focus();
+        GameNameBox.SelectAll();
     }
 
     private void RemoveProfileButton_Click(object sender, RoutedEventArgs e)
@@ -343,13 +371,13 @@ public partial class SettingsWindow : FluentWindow
         // Always leave at least one profile — there must always be something to launch.
         if (_workingProfiles.Count <= 1) return;
 
+        var index = _profileEditRows.IndexOf(row);
         _workingProfiles.Remove(row.Model);
         _profileEditRows.Remove(row);
 
-        if (ReferenceEquals(_currentEditingProfile, row.Model))
+        if (ReferenceEquals(_currentEditingProfile, row.Model) || GameList.SelectedItem is null)
         {
-            _currentEditingProfile = _workingProfiles[0];
-            LoadProfileAppRowsFromCurrentProfile();
+            GameList.SelectedIndex = ListSelection.AfterRemoval(index, _profileEditRows.Count);
         }
         if (ReferenceEquals(_workingActiveProfile, row.Model))
         {
@@ -365,6 +393,7 @@ public partial class SettingsWindow : FluentWindow
         _profileEditRows.Move(index, index - 1);
         _workingProfiles.Remove(row.Model);
         _workingProfiles.Insert(index - 1, row.Model);
+        GameList.SelectedItem = row;
     }
 
     private void MoveProfileDownButton_Click(object sender, RoutedEventArgs e)
@@ -375,13 +404,7 @@ public partial class SettingsWindow : FluentWindow
         _profileEditRows.Move(index, index + 1);
         _workingProfiles.Remove(row.Model);
         _workingProfiles.Insert(index + 1, row.Model);
-    }
-
-    private void EditProfileAppsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (((FrameworkElement)sender).Tag is not ProfileEditRowViewModel row) return;
-        _currentEditingProfile = row.Model;
-        LoadProfileAppRowsFromCurrentProfile();
+        GameList.SelectedItem = row;
     }
 
     private void MoveProfileAppUpButton_Click(object sender, RoutedEventArgs e)

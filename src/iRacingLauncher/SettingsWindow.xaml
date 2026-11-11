@@ -24,69 +24,76 @@
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
-        <TabControl x:Name="SettingsTabs" Grid.Row="1" Margin="16,8">
+        <TabControl x:Name="SettingsTabs" Grid.Row="1" Margin="16,8" SelectionChanged="SettingsTabs_SelectionChanged">
             <TabItem x:Name="GamesTab" Header="Games">
-                <ScrollViewer Margin="0,8,0,0">
-                    <StackPanel>
-                    <StackPanel>
-                        <TextBlock Text="Each profile has its own selected apps and launch order — switch between them from the main window."
-                                   FontSize="11" Opacity="0.6" Margin="0,0,0,8" TextWrapping="Wrap" />
-                        <ItemsControl x:Name="ProfileEditList">
-                            <ItemsControl.ItemTemplate>
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0" Margin="0,0,16,0">
+                        <ui:Button DockPanel.Dock="Bottom" Content="Add game" Icon="{ui:SymbolIcon Add20}"
+                                   Margin="0,8,0,0" Click="AddProfileButton_Click" />
+                        <ListBox x:Name="GameList" SelectionChanged="GameList_SelectionChanged">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <ui:Card Margin="0,4">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <ui:TextBox Grid.Column="0" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
-                                            <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Margin="8,0,0,0"
-                                                       Click="MoveProfileUpButton_Click" Tag="{Binding}" />
-                                            <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Margin="4,0,0,0"
-                                                       Click="MoveProfileDownButton_Click" Tag="{Binding}" />
-                                            <ui:Button Grid.Column="3" Content="Edit Apps" Margin="8,0,0,0"
-                                                       Click="EditProfileAppsButton_Click" Tag="{Binding}" />
-                                            <ui:Button Grid.Column="4" Icon="{ui:SymbolIcon Delete20}" ToolTip="Delete profile" Margin="8,0,0,0"
-                                                       Click="RemoveProfileButton_Click" Tag="{Binding}" />
-                                        </Grid>
-                                    </ui:Card>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Padding="4"
+                                                   Click="MoveProfileUpButton_Click" Tag="{Binding}" />
+                                        <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Padding="4" Margin="2,0,0,0"
+                                                   Click="MoveProfileDownButton_Click" Tag="{Binding}" />
+                                        <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon Delete20}" ToolTip="Delete game" Padding="4" Margin="2,0,0,0"
+                                                   Click="RemoveProfileButton_Click" Tag="{Binding}" />
+                                    </Grid>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <ui:Button Content="Add Profile" Icon="Add20" Margin="0,8,0,0" Click="AddProfileButton_Click" />
-                    </StackPanel>
-                    <StackPanel>
-                        <TextBlock x:Name="EditingProfileLabel" Text="Selected for:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,8" />
-                        <ItemsControl x:Name="ProfileAppList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <ui:Card Margin="0,4">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
-                                                      IsChecked="{Binding Selected, Mode=TwoWay}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" />
-                                            <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Margin="8,0,0,0"
-                                                       IsEnabled="{Binding IsReferenced}" Click="MoveProfileAppUpButton_Click" Tag="{Binding}" />
-                                            <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Margin="4,0,0,0"
-                                                       IsEnabled="{Binding IsReferenced}" Click="MoveProfileAppDownButton_Click" Tag="{Binding}" />
-                                        </Grid>
-                                    </ui:Card>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <DockPanel Grid.Column="1" DataContext="{Binding SelectedItem, ElementName=GameList}">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="Name" FontSize="11" Opacity="0.7" Margin="0,0,0,4" />
+                            <ui:TextBox x:Name="GameNameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock Text="{Binding Name, StringFormat='Apps launched for {0}, in order'}"
+                                       FontSize="12" FontWeight="SemiBold" Margin="0,16,0,8" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <ScrollViewer>
+                            <ItemsControl x:Name="ProfileAppList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,2" Padding="10,4" CornerRadius="4"
+                                                Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0"
+                                                          IsChecked="{Binding Selected, Mode=TwoWay}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" />
+                                                <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowUp20}" ToolTip="Move up" Padding="4"
+                                                           IsEnabled="{Binding IsReferenced}" Click="MoveProfileAppUpButton_Click" Tag="{Binding}" />
+                                                <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon ArrowDown20}" ToolTip="Move down" Padding="4" Margin="2,0,0,0"
+                                                           IsEnabled="{Binding IsReferenced}" Click="MoveProfileAppDownButton_Click" Tag="{Binding}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Grid>
             </TabItem>
 
             <TabItem x:Name="AppsTab" Header="Apps">
